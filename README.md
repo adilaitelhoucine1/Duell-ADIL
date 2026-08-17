@@ -1,6 +1,12 @@
 # DUEL Puzzle Book Builder
 
-Open `index.html` locally to use the builder.
+Run the local server, then open the builder URL:
+
+```powershell
+npm start
+```
+
+Open `http://127.0.0.1:4173`. Replicate does not support direct browser requests from a `file://` page, so AI generation requires the local server. The rest of the builder remains local.
 
 ## Book structure
 
@@ -25,7 +31,8 @@ Solution sheets use clean answer tiles, lossless PNG embedding, and a 360 DPI PD
 - `puzzles/math.js` - Number Pyramid and Math Matrix.
 - `puzzles/xo.js` - three quality-checked XO tactical boards per page.
 - `puzzles/activities.js` - Dots & Boxes and the AI-ready Draw the Object activity.
-- `puzzles/ai-content.js` - Gemini structured-content adapter, validation, and safe normalization.
+- `puzzles/replicate-content.js` - Replicate content adapter, JSON validation, and safe normalization.
+- `server.js` - dependency-free local static server and Replicate proxy.
 - `puzzles/solution-pages.js` - lazy, dynamic four-answer pagination and rendering.
 - `puzzles/AUDIT.md` - enabled/pending quality audit.
 - `puzzles/PREMIUM_INTERIOR_AUDIT.md` - page-by-page visual findings and corrections.
@@ -35,14 +42,15 @@ Every selectable generator must return an explicit validation record and pass it
 
 ## AI Content Studio
 
-Select the activity types, puzzle count, and difficulty, then enter a niche, audience, language, tone, optional direction, and a current Gemini model. Enter the Gemini API key only when generating. The builder requests structured content for the exact activity schedule and applies the returned titles, instructions, footers, Word Search banks, Anagram banks, and Draw the Object prompts without changing puzzle mechanics or book order. Book-level introduction and guide copy can also be downloaded as JSON.
+Select the activity types, puzzle count, and difficulty, then enter a niche, choose the audience/age and interior language, choose a tone, and add optional direction. Enter a fresh Replicate API token only when generating. The local proxy runs the fixed official `google/gemini-2.5-flash` model and applies the returned titles, instructions, footers, Word Search banks, Anagram banks, and Draw the Object prompts without changing puzzle mechanics or book order. Book-level introduction and guide copy can also be downloaded as JSON.
 
-The API key stays in the password input and request memory only. It is sent to Google in the `x-goog-api-key` header and is excluded from generated records, downloads, `localStorage`, and logs. This direct browser mode is intended for local/private use. A published or shared version should call Gemini through a server-side proxy so the key is not exposed to visitors.
+The token stays in the masked input and request memory only. It is forwarded through the local proxy in the `Authorization: Bearer` header and is excluded from model inputs, generated records, downloads, browser storage, source code, and logs. Do not paste a real token into source files or publish it with the app.
 
 Run the repeatable quality suite with:
 
 ```powershell
 node .\puzzles\tests\quality.test.js
-node .\puzzles\tests\ai-content.test.js
+node .\puzzles\tests\replicate-content.test.js
+node .\puzzles\tests\server.test.js
 node .\puzzles\tests\index-static.test.js
 ```

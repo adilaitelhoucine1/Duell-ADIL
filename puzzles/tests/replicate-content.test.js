@@ -5,7 +5,7 @@ const fs=require('node:fs');
 const path=require('node:path');
 const vm=require('node:vm');
 
-const fakeKey='TEST_KEY_NOT_REAL';
+const fakeToken='r8_'+'A'.repeat(37);
 const schedule=['wordsearch','anagram','drawobject'];
 const generated={
   book:{
@@ -26,41 +26,39 @@ const context={
   window:{},console,AbortController,setTimeout,clearTimeout,
   fetch:async(url,options)=>{
     requestUrl=url;requestOptions=options;
-    return {ok:true,status:200,json:async()=>({candidates:[{content:{parts:[{text:JSON.stringify(generated)}]}}]})};
+    return {ok:true,status:200,json:async()=>({output:`\n\`\`\`json\n${JSON.stringify(generated)}\n\`\`\``})};
   }
 };
 vm.createContext(context);
-vm.runInContext(fs.readFileSync(path.resolve(__dirname,'..','ai-content.js'),'utf8'),context,{filename:'ai-content.js'});
+vm.runInContext(fs.readFileSync(path.resolve(__dirname,'..','replicate-content.js'),'utf8'),context,{filename:'replicate-content.js'});
 
 (async()=>{
-  const ai=context.window.DuelAIContent;
-  assert.equal(ai.DEFAULT_MODEL,'gemini-3.7-flash');
+  const ai=context.window.DuelReplicateContent;
+  assert.equal(ai.MODEL,'google/gemini-2.5-flash');
   assert.equal(ai.anagramCount('medium'),10);
   assert.equal(JSON.stringify(ai.uniqueWords(['café','SEA LION','coral','CORAL'])),JSON.stringify(['CAFE','SEALION','CORAL']));
 
   const progress=[];
   const plan=await ai.generate({
-    apiKey:fakeKey,model:ai.DEFAULT_MODEL,niche:'Ocean exploration',audience:'Kids ages 8-12',
-    language:'English',tone:'Playful',difficulty:'medium',extra:'Use vivid sea vocabulary.',schedule
+    apiToken:fakeToken,niche:'Ocean exploration',audience:'Kids ages 8-12',language:'English',
+    tone:'Playful',difficulty:'medium',extra:'Use vivid sea vocabulary.',schedule
   },event=>progress.push(event));
 
-  assert.match(requestUrl,/generativelanguage\.googleapis\.com\/v1beta\/models\/gemini-3\.7-flash:generateContent$/);
-  assert.ok(!requestUrl.includes(fakeKey),'The API key must not appear in the request URL.');
+  assert.equal(requestUrl,'/api/replicate-content');
+  assert.ok(!requestUrl.includes(fakeToken),'The token must not appear in the request URL.');
   assert.equal(requestOptions.method,'POST');
-  assert.equal(requestOptions.headers['x-goog-api-key'],fakeKey,'The API key must use the supported request header.');
-  assert.ok(!requestOptions.body.includes(fakeKey),'The API key must not appear in the JSON body.');
-  assert.equal(requestOptions.headers['Content-Type'],'application/json');
-
-  const body=JSON.parse(requestOptions.body);
-  assert.equal(body.generationConfig.responseMimeType,'application/json');
-  assert.equal(body.generationConfig.responseSchema.type,'OBJECT');
+  assert.equal(requestOptions.headers.Authorization,`Bearer ${fakeToken}`,'The local proxy must receive the token in the Authorization header.');
+  assert.ok(!requestOptions.body.includes(fakeToken),'The token must not appear in the JSON body.');
+  assert.deepEqual(Object.keys(JSON.parse(requestOptions.body)),['prompt']);
+  assert.match(JSON.parse(requestOptions.body).prompt,/Interior language: English/);
   assert.equal(plan.activities.length,3);
   assert.equal(plan.activities[0].words.length,6);
   assert.equal(plan.activities[1].words.length,10);
   assert.equal(plan.activities[2].drawPrompt,'LIGHTHOUSE');
   assert.equal(plan.book.title,generated.book.title);
-  assert.ok(!JSON.stringify(plan).includes(fakeKey),'Generated/exportable content must never retain the API key.');
+  assert.equal(plan.provider,'Replicate');
+  assert.ok(!JSON.stringify(plan).includes(fakeToken),'Generated/exportable content must never retain the token.');
   assert.ok(progress.length>=2,'Generation must report progress for the interface.');
 
-  console.log('Passed Gemini content adapter, schema, validation, and key-handling tests.');
+  console.log('Passed Replicate content adapter, JSON validation, and token-handling tests.');
 })().catch(error=>{console.error(error);process.exitCode=1;});

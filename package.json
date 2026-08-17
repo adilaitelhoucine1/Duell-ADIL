@@ -1,0 +1,13 @@
+{
+  "name": "duel-puzzle-book-builder",
+  "version": "3.0.0",
+  "private": true,
+  "description": "Local puzzle book builder with Replicate-powered interior copy.",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node puzzles/tests/quality.test.js && node puzzles/tests/replicate-content.test.js && node puzzles/tests/server.test.js && node puzzles/tests/index-static.test.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

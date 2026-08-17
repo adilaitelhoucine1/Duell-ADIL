@@ -9,7 +9,7 @@ const puzzleRoot=path.resolve(__dirname,'..');
 const context={window:{},console};
 vm.createContext(context);
 
-for(const filename of ['core.js','catalog.js','logic.js','word.js','math.js','xo.js','activities.js','solution-pages.js','ai-content.js']){
+for(const filename of ['core.js','catalog.js','logic.js','word.js','math.js','xo.js','activities.js','solution-pages.js','replicate-content.js']){
   const source=fs.readFileSync(path.join(puzzleRoot,filename),'utf8');
   vm.runInContext(source,context,{filename});
 }
@@ -20,7 +20,7 @@ assert.equal(context.window.DuelPuzzleCatalog.length,22,'The catalog should cont
 assert.equal(definitions.length,12,'Ten certified puzzle adapters and two validated competitive activities should be selectable.');
 assert.ok(context.window.DuelPuzzleCatalog.some(item=>item.id==='xo'),'XO must replace True or False.');
 assert.ok(!context.window.DuelPuzzleCatalog.some(item=>item.id==='vraisfaux'),'True or False must not remain in the active catalog.');
-assert.equal(context.window.DuelAIContent.DEFAULT_MODEL,'gemini-3.7-flash','The Gemini adapter must expose its editable default model.');
+assert.equal(context.window.DuelReplicateContent.MODEL,'google/gemini-2.5-flash','The adapter must use the fixed Replicate model.');
 
 let cases=0;
 for(const definition of definitions){
@@ -61,9 +61,12 @@ assert.match(html,/filter\(it=>typeof it\.makeSolutionComposite==='function'\)/,
 assert.match(html,/dpi:110/,'On-screen solution previews must use the high-resolution path.');
 assert.match(html,/format=isSolution\?'PNG':'JPEG'/,'Main-PDF solution pages must use lossless PNG.');
 assert.match(html,/addImage\(dataUrl,'PNG'/,'The solutions-only PDF must use lossless PNG.');
-assert.match(html,/type="password" id="aiApiKey"/,'The Gemini key input must be masked.');
+assert.match(html,/type="password" id="aiApiKey"/,'The Replicate token input must be masked.');
 assert.match(html,/id="btnAiDownload" disabled/,'AI copy export must remain unavailable until content exists.');
-assert.doesNotMatch(html,/\b(?:localStorage|sessionStorage)\s*\./,'Gemini credentials and generated content must not be persisted by the app.');
-assert.doesNotMatch(html,/id="aiApiKey"[^>]*value=/,'The Gemini key must never be hard-coded into the app.');
+assert.match(html,/<select id="aiAudience">/,'Audience and age must be a select control.');
+assert.match(html,/<select id="aiLanguage">/,'Interior language must be a select control.');
+assert.doesNotMatch(html,/id="aiModel"/,'The editable Gemini model field must be removed.');
+assert.doesNotMatch(html,/\b(?:localStorage|sessionStorage)\s*\./,'Replicate credentials and generated content must not be persisted by the app.');
+assert.doesNotMatch(html,/id="aiApiKey"[^>]*value=/,'The Replicate token must never be hard-coded into the app.');
 
 console.log(`Passed ${cases} certified puzzle quality cases.`);

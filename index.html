@@ -281,16 +281,12 @@ button:focus-visible{outline:3px solid var(--cyanmark);outline-offset:2px}
       </div>
       <div class="ai-grid">
         <div class="ai-field wide">
-          <label for="aiApiKey">Gemini API key</label>
+          <label for="aiApiKey">Replicate API token</label>
           <div class="ai-keyrow">
-            <input type="password" id="aiApiKey" autocomplete="off" spellcheck="false" placeholder="Paste a fresh Gemini key">
-            <button type="button" id="btnAiShowKey" aria-label="Show or hide Gemini API key">Show</button>
-            <button type="button" id="btnAiClearKey" aria-label="Clear Gemini API key">Clear</button>
+            <input type="password" id="aiApiKey" autocomplete="off" spellcheck="false" placeholder="Paste a fresh r8_ Replicate token">
+            <button type="button" id="btnAiShowKey" aria-label="Show or hide Replicate API token">Show</button>
+            <button type="button" id="btnAiClearKey" aria-label="Clear Replicate API token">Clear</button>
           </div>
-        </div>
-        <div class="ai-field">
-          <label for="aiModel">Gemini model</label>
-          <input type="text" id="aiModel" value="gemini-3.7-flash" spellcheck="false">
         </div>
         <div class="ai-field">
           <label for="aiNiche">Book niche / theme</label>
@@ -298,11 +294,27 @@ button:focus-visible{outline:3px solid var(--cyanmark);outline-offset:2px}
         </div>
         <div class="ai-field">
           <label for="aiAudience">Audience / age</label>
-          <input type="text" id="aiAudience" value="Kids ages 8-12" placeholder="Kids ages 8-12">
+          <select id="aiAudience">
+            <option value="Young children ages 5-7">Young children · 5–7</option>
+            <option value="Kids ages 8-12" selected>Kids · 8–12</option>
+            <option value="Teens ages 13-17">Teens · 13–17</option>
+            <option value="Adults ages 18 and up">Adults · 18+</option>
+            <option value="Families and mixed ages">Families · mixed ages</option>
+          </select>
         </div>
         <div class="ai-field">
           <label for="aiLanguage">Interior language</label>
-          <input type="text" id="aiLanguage" value="English" placeholder="English">
+          <select id="aiLanguage">
+            <option value="English" selected>English</option>
+            <option value="French">French · Français</option>
+            <option value="Spanish">Spanish · Español</option>
+            <option value="German">German · Deutsch</option>
+            <option value="Italian">Italian · Italiano</option>
+            <option value="Portuguese">Portuguese · Português</option>
+            <option value="Dutch">Dutch · Nederlands</option>
+            <option value="Arabic">Arabic · العربية</option>
+            <option value="Turkish">Turkish · Türkçe</option>
+          </select>
         </div>
         <div class="ai-field">
           <label for="aiTone">Tone</label>
@@ -318,7 +330,7 @@ button:focus-visible{outline:3px solid var(--cyanmark);outline-offset:2px}
           <label for="aiExtra">Extra content direction (optional)</label>
           <textarea id="aiExtra" placeholder="Vocabulary level, topics to include or avoid, seasonal details, style notes..."></textarea>
         </div>
-        <p class="ai-security"><b>Key privacy:</b> the key stays only in this input and memory. It is sent directly to Google Gemini when you click Generate AI Content; it is never added to this HTML, localStorage, exports, or logs. For a published/shared app, use a server-side proxy instead of exposing a key in the browser.</p>
+        <p class="ai-security"><b>Token privacy:</b> run this builder through its local server. The masked token is forwarded to Replicate only when you generate content and is never added to the HTML, browser storage, exports, or logs. Never publish the builder with a token embedded in its source.</p>
         <div class="ai-actions">
           <button class="primary" type="button" id="btnAiGenerate">Generate AI Content</button>
           <button class="ghost" type="button" id="btnAiClear">Clear AI Content</button>
@@ -468,7 +480,7 @@ button:focus-visible{outline:3px solid var(--cyanmark);outline-offset:2px}
 <script src="./puzzles/xo.js"></script>
 <script src="./puzzles/activities.js"></script>
 <script src="./puzzles/solution-pages.js"></script>
-<script src="./puzzles/ai-content.js"></script>
+<script src="./puzzles/replicate-content.js"></script>
 <script>
 (function(){
   const $ = id => document.getElementById(id);
@@ -801,8 +813,8 @@ button:focus-visible{outline:3px solid var(--cyanmark);outline-offset:2px}
 
   function aiFingerprint(schedule=scheduleFromControls()){
     return JSON.stringify({
-      schedule,difficulty:$('puzzleDifficulty').value,niche:$('aiNiche').value.trim(),audience:$('aiAudience').value.trim(),
-      language:$('aiLanguage').value.trim(),tone:$('aiTone').value,extra:$('aiExtra').value.trim(),model:$('aiModel').value.trim()
+      schedule,difficulty:$('puzzleDifficulty').value,niche:$('aiNiche').value.trim(),audience:$('aiAudience').value,
+      language:$('aiLanguage').value,tone:$('aiTone').value,extra:$('aiExtra').value.trim()
     });
   }
 
@@ -840,17 +852,17 @@ button:focus-visible{outline:3px solid var(--cyanmark);outline-offset:2px}
   }
 
   async function generateAiContent(){
-    const schedule=scheduleFromControls(),apiKey=$('aiApiKey').value.trim(),button=$('btnAiGenerate');
+    const schedule=scheduleFromControls(),apiToken=$('aiApiKey').value.trim(),button=$('btnAiGenerate');
     const config={
-      apiKey,model:$('aiModel').value.trim(),niche:$('aiNiche').value.trim(),audience:$('aiAudience').value.trim(),
-      language:$('aiLanguage').value.trim(),tone:$('aiTone').value,difficulty:$('puzzleDifficulty').value,
+      apiToken,niche:$('aiNiche').value.trim(),audience:$('aiAudience').value,
+      language:$('aiLanguage').value,tone:$('aiTone').value,difficulty:$('puzzleDifficulty').value,
       extra:$('aiExtra').value.trim(),schedule
     };
-    button.disabled=true;$('btnAiClear').disabled=true;setAiState('generating');$('aiProgress').textContent='Preparing Gemini request...';
-    setStatus('Generating niche-specific interior copy with Gemini...');
+    button.disabled=true;$('btnAiClear').disabled=true;setAiState('generating');$('aiProgress').textContent='Preparing Replicate request...';
+    setStatus('Generating niche-specific interior copy through Replicate...');
     try{
-      const plan=await DuelAIContent.generate(config,progress=>{
-        $('aiProgress').textContent=`Gemini batch ${progress.batch}/${progress.batches} · ${progress.completed}/${progress.total} activities ready`;
+      const plan=await DuelReplicateContent.generate(config,progress=>{
+        $('aiProgress').textContent=`Replicate batch ${progress.batch}/${progress.batches} · ${progress.completed}/${progress.total} activities ready`;
       });
       plan.fingerprint=aiFingerprint(schedule);puzzleState.aiPlan=plan;
       const wordBlocks=plan.activities.filter(item=>item.type==='wordsearch').map(item=>item.words.join('\n'));
@@ -858,7 +870,7 @@ button:focus-visible{outline:3px solid var(--cyanmark);outline-offset:2px}
       if(wordBlocks.length)$('wordList').value=wordBlocks.join('\n\n');
       if(drawPrompts.length)$('drawPromptList').value=drawPrompts.join('\n');
       $('aiUseContent').disabled=false;$('aiUseContent').checked=true;$('btnAiDownload').disabled=false;setAiState('ready','ready');renderAiSummary(plan);
-      $('aiProgress').textContent=`${plan.activities.length} activity copy pack${plan.activities.length!==1?'s':''} ready with ${plan.model}`;
+      $('aiProgress').textContent=`${plan.activities.length} activity copy pack${plan.activities.length!==1?'s':''} ready through Replicate`;
       setStatus('AI interior content is ready. Upload a border and generate the puzzles.',true);
     }catch(error){
       console.error('AI content generation failed without logging credentials.',error);setAiState('generation failed','stale');
@@ -1101,7 +1113,7 @@ button:focus-visible{outline:3px solid var(--cyanmark);outline-offset:2px}
     scale.addEventListener('input',()=>{scaleValue.textContent=scale.value+'%';});
   })();
 
-  // ---- Gemini AI content wiring ----
+  // ---- Replicate AI content wiring ----
   (function(){
     $('btnAiGenerate').addEventListener('click',generateAiContent);
     $('btnAiClear').addEventListener('click',()=>{clearAiContent();setStatus('AI content cleared. Manual and built-in content will be used.',true);});
@@ -1109,13 +1121,13 @@ button:focus-visible{outline:3px solid var(--cyanmark);outline-offset:2px}
       const plan=puzzleState.aiPlan;if(!plan)return;
       const exportCopy={book:plan.book,activities:plan.activities,model:plan.model,createdAt:plan.createdAt};
       dl(new Blob([JSON.stringify(exportCopy,null,2)],{type:'application/json'}),outBaseName()+'-ai-content.json');
-      setStatus('AI copy JSON downloaded without the API key.',true);
+      setStatus('AI copy JSON downloaded without the Replicate token.',true);
     });
     $('btnAiShowKey').addEventListener('click',()=>{
       const input=$('aiApiKey'),show=input.type==='password';input.type=show?'text':'password';$('btnAiShowKey').textContent=show?'Hide':'Show';
     });
     $('btnAiClearKey').addEventListener('click',()=>{$('aiApiKey').value='';$('aiApiKey').type='password';$('btnAiShowKey').textContent='Show';$('aiApiKey').focus();});
-    ['aiModel','aiNiche','aiAudience','aiLanguage','aiTone','aiExtra','puzzleCount','puzzleDifficulty'].forEach(id=>{
+    ['aiNiche','aiAudience','aiLanguage','aiTone','aiExtra','puzzleCount','puzzleDifficulty'].forEach(id=>{
       $(id).addEventListener('input',markAiStale);$(id).addEventListener('change',markAiStale);
     });
   })();

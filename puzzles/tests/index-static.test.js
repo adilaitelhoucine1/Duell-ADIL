@@ -10,8 +10,9 @@ inlineBlocks.forEach(source=>new Function(source));
 
 const ids=[...html.matchAll(/\sid="([^"]+)"/g)].map(match=>match[1]);
 assert.equal(new Set(ids).size,ids.length,'Every interface id must be unique.');
-for(const required of ['aiApiKey','aiModel','aiNiche','aiAudience','aiLanguage','aiTone','aiExtra','btnAiGenerate','btnAiDownload','aiUseContent']){
+for(const required of ['aiApiKey','aiNiche','aiAudience','aiLanguage','aiTone','aiExtra','btnAiGenerate','btnAiDownload','aiUseContent']){
   assert.ok(ids.includes(required),`The AI interface must contain #${required}.`);
 }
+assert.ok(!ids.includes('aiModel'),'The removed model field must not return.');
 
 console.log(`Compiled ${inlineBlocks.length} inline script block and verified ${ids.length} unique interface ids.`);
