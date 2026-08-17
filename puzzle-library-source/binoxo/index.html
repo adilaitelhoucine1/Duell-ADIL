@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binoxo Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --primary-color: #2c3e50;
+            --accent-blue: #3498db;
+            --accent-green: #27ae60;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: #f4f4f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        h1 { margin-bottom: 20px; color: var(--primary-color); }
+
+        /* --- CONTROL PANEL --- */
+        .controls {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            max-width: 950px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label { font-weight: bold; font-size: 0.85rem; color: #555; }
+        
+        select, input {
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            width: 140px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            transition: transform 0.1s, opacity 0.2s;
+            height: 46px; 
+        }
+
+        button:active { transform: scale(0.98); }
+        button:hover { opacity: 0.9; }
+
+        .btn-preview { background-color: var(--accent-blue); }
+        .btn-pdf { background-color: var(--accent-green); }
+
+        /* --- PREVIEW AREA --- */
+        .preview-container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+        }
+        
+        .preview-label {
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sheet {
+            background: white;
+            width: 210mm; 
+            height: 297mm; 
+            padding: 0; /* Removing padding to allow flex center to work fully on the page area */
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center; /* Perfectly center the grid vertically */
+            transform: scale(0.55); 
+            transform-origin: top center;
+            border: 1px solid #eee;
+        }
+
+        /* --- BINOXO GRID --- */
+        .puzzle-wrapper {
+            display: grid;
+            gap: 0; 
+            border: 2px solid #333;
+        }
+
+        .cell {
+            width: 50px; height: 50px;
+            border: 1px solid #888;
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            font-weight: bold;
+            background: #fff;
+            line-height: 1; /* Helps centering */
+            padding-bottom: 2px; /* Slight visual tweak for HTML alignment */
+            box-sizing: border-box;
+        }
+
+        /* Style for X and O */
+        .val-X { color: #c0392b; }
+        .val-O { color: #2980b9; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Binoxo Generator</h1>
+
+    <div class="controls">
+        <div class="input-group">
+            <label>Grid Size</label>
+            <select id="gridSize">
+                <option value="6" selected>6 x 6</option>
+                <option value="8">8 x 8</option>
+                <option value="10">10 x 10</option>
+                <option value="12">12 x 12</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Difficulty (% empty)</label>
+            <select id="difficulty">
+                <option value="0.4">Easy (40%)</option>
+                <option value="0.55" selected>Medium (55%)</option>
+                <option value="0.7">Hard (70%)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Number of Puzzles</label>
+            <input type="number" id="pageCount" value="5" min="1" max="20">
+        </div>
+
+        <div class="input-group">
+            <label>Font Size (pt)</label>
+            <input type="number" id="numSize" value="20" min="10" max="40">
+        </div>
+
+        <button class="btn-preview" onclick="generatePreview()">Preview</button>
+        <button class="btn-pdf" id="btnPdf" onclick="downloadPDF()">Download PDF</button>
+    </div>
+
+    <div class="preview-container">
+        <div class="preview-label">Preview</div>
+        <div class="sheet" id="previewSheet">
+            <div id="gridContainer" class="puzzle-wrapper"></div>
+        </div>
+    </div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+
+        // --- 1. LOGIC: Binoxo Generation ---
+        
+        function isValid(grid, row, col, val, size) {
+            // Check 3 consecutive
+            if (col >= 2 && grid[row][col-1] === val && grid[row][col-2] === val) return false;
+            if (row >= 2 && grid[row-1][col] === val && grid[row-2][col] === val) return false;
+
+            // Check max count per row/col (size/2)
+            let rowCount = 0;
+            for(let c=0; c<col; c++) if(grid[row][c] === val) rowCount++;
+            if (rowCount >= size/2) return false;
+
+            let colCount = 0;
+            for(let r=0; r<row; r++) if(grid[r][col] === val) colCount++;
+            if (colCount >= size/2) return false;
+
+            return true;
+        }
+
+        function solve(grid, r, c, size) {
+            if (r === size) return true; 
+            
+            let nextR = c === size - 1 ? r + 1 : r;
+            let nextC = c === size - 1 ? 0 : c + 1;
+
+            let tryOrder = Math.random() > 0.5 ? ['X', 'O'] : ['O', 'X'];
+
+            for (let val of tryOrder) {
+                if (isValid(grid, r, c, val, size)) {
+                    grid[r][c] = val;
+                    if (solve(grid, nextR, nextC, size)) return true;
+                    grid[r][c] = null; 
+                }
+            }
+            return false;
+        }
+
+        function createPuzzleData(size, difficulty) {
+            let grid = Array.from({ length: size }, () => Array(size).fill(null));
+            solve(grid, 0, 0, size);
+
+            let mask = [];
+            for (let r = 0; r < size; r++) {
+                let rowMask = [];
+                for (let c = 0; c < size; c++) {
+                    rowMask.push(Math.random() > difficulty); 
+                }
+                mask.push(rowMask);
+            }
+            if(!grid[0][0]) grid = createPuzzleData(size, difficulty).grid; 
+            return { grid, mask, size };
+        }
+
+        // --- 2. HTML PREVIEW ---
+        function generatePreview() {
+            const container = document.getElementById('gridContainer');
+            const size = parseInt(document.getElementById('gridSize').value);
+            const diff = parseFloat(document.getElementById('difficulty').value);
+            const fontSizeVal = document.getElementById('numSize').value;
+
+            const data = createPuzzleData(size, diff);
+            
+            container.innerHTML = '';
+            container.style.gridTemplateColumns = `repeat(${size}, auto)`;
+
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    let cell = document.createElement('div');
+                    cell.className = 'cell';
+                    // Font size tweaked for screen
+                    cell.style.fontSize = (parseInt(fontSizeVal) + 4) + 'px';
+
+                    const isVisible = data.mask[r][c];
+                    const val = data.grid[r][c];
+                    
+                    if (isVisible) {
+                        cell.innerText = val;
+                        cell.classList.add(`val-${val}`);
+                    } else {
+                        cell.innerText = '';
+                    }
+
+                    container.appendChild(cell);
+                }
+            }
+        }
+
+        // --- 3. PDF GENERATION ---
+        async function downloadPDF() {
+            const btn = document.getElementById('btnPdf');
+            const originalText = btn.innerText;
+            btn.innerText = "Generating...";
+            btn.disabled = true;
+
+            await new Promise(r => setTimeout(r, 100));
+
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const pageCount = parseInt(document.getElementById('pageCount').value);
+            const size = parseInt(document.getElementById('gridSize').value);
+            const difficulty = parseFloat(document.getElementById('difficulty').value);
+            const fontSizePt = parseInt(document.getElementById('numSize').value);
+            
+            // Calculate Cell Size
+            let cellSize = 160 / size; 
+            if(cellSize > 20) cellSize = 20;
+
+            let allPuzzles = [];
+            for(let i=0; i<pageCount; i++) {
+                allPuzzles.push(createPuzzleData(size, difficulty));
+            }
+
+            for(let i=0; i<pageCount; i++) {
+                if(i > 0) doc.addPage(); 
+                drawPageOnPDF(doc, allPuzzles[i], false, fontSizePt, cellSize);
+
+                doc.addPage(); 
+                drawPageOnPDF(doc, allPuzzles[i], true, fontSizePt, cellSize);
+            }
+
+            doc.save('Binoxo_Puzzles.pdf');
+
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+
+        function drawPageOnPDF(doc, data, isSolution, fontSizePt, cellSize) {
+            const pageWidth = 210;
+            const pageHeight = 297;
+            const size = data.size;
+            const gridWidth = size * cellSize;
+            const gridHeight = size * cellSize;
+
+            // Calculate exact center coordinates
+            const startX = (pageWidth - gridWidth) / 2;
+            const startY = (pageHeight - gridHeight) / 2;
+
+            // NO TITLES HERE - Just the grid
+
+            // Draw Grid
+            doc.setLineWidth(0.5);
+            doc.setDrawColor(0);
+            doc.setTextColor(0);
+
+            for(let r=0; r<size; r++) {
+                for(let c=0; c<size; c++) {
+                    let x = startX + c * cellSize;
+                    let y = startY + r * cellSize;
+
+                    doc.rect(x, y, cellSize, cellSize);
+
+                    const val = data.grid[r][c];
+                    const isVisible = data.mask[r][c];
+
+                    if (isSolution || isVisible) {
+                        doc.setFontSize(fontSizePt);
+                        
+                        if (isSolution && !isVisible) {
+                            doc.setTextColor(39, 174, 96); 
+                        } else {
+                            doc.setTextColor(0, 0, 0);
+                        }
+                        
+                        // Center text: X and Y + Baseline Middle
+                        // Using baseline: 'middle' is the best way to center in PDF
+                        doc.text(val, x + cellSize/2, y + cellSize/2, { align: "center", baseline: "middle" });
+                    }
+                }
+            }
+        }
+
+        window.onload = generatePreview;
+    </script>
+</body>
+</html>

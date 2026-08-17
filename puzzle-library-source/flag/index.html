@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur de Quiz Drapeaux - Clean Interior</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #e67e22;
+            --bg: #f4f4f9;
+            /* Default dimensions (6x9 inches in mm) */
+            --page-w: 152.4mm; 
+            --page-h: 228.6mm;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #333;
+        }
+
+        h1 { color: var(--primary); margin-bottom: 10px; }
+
+        /* --- CONTROLS --- */
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            max-width: 900px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label { font-weight: bold; font-size: 0.9rem; }
+        
+        input, select {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            transition: 0.2s;
+            height: 42px;
+            align-self: flex-end;
+        }
+
+        .btn-gen { background-color: #3498db; }
+        .btn-gen:hover { background-color: #2980b9; }
+
+        .btn-pdf { background-color: #27ae60; }
+        .btn-pdf:hover { background-color: #219150; }
+        .btn-pdf:disabled { background-color: #bdc3c7; cursor: wait; }
+
+        /* --- PREVIEW AREA --- */
+        .preview-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 40px;
+        }
+
+        .page-pair {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            border-bottom: 4px dashed #ccc;
+            padding-bottom: 40px;
+            width: 100%;
+        }
+
+        .sheet {
+            background: white;
+            /* Dynamic size variables */
+            width: var(--page-w);
+            min-height: var(--page-h);
+            padding: 15mm; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform-origin: top center;
+        }
+
+        @media (max-width: 900px) {
+            .sheet { zoom: 0.5; }
+        }
+
+        .sheet-title {
+            font-family: "Times New Roman", serif;
+            font-weight: bold;
+            font-size: 28px;
+            margin-bottom: 20px;
+            color: #000;
+            text-align: center;
+        }
+
+        /* Puzzle Styles */
+        .flag-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 30px; 
+            width: 100%;
+        }
+
+        .flag-img {
+            width: 130px; 
+            height: auto;
+            border: 1px solid #ddd; 
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* --- STYLE NOIR ET BLANC --- */
+        .bw-style .flag-img, 
+        .bw-style .solution-img {
+            filter: grayscale(100%) contrast(120%) brightness(110%);
+            border: 2px solid #000 !important;
+            box-shadow: none;
+        }
+
+        .dotted-line {
+            margin-top: 15px;
+            width: 80%;
+            border-bottom: 2px dotted #000;
+            height: 1px;
+        }
+
+        /* Solution Styles - LARGE */
+        .solution-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            margin-bottom: 30px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+
+        .solution-img {
+            width: 100px; 
+            border: 1px solid #ccc;
+            margin-bottom: 8px;
+            margin-right: 0;
+        }
+
+        .solution-text {
+            font-size: 20px;
+            font-family: "Courier New", monospace;
+            font-weight: bold;
+            color: #27ae60;
+        }
+        
+        .bw-style .solution-text {
+            color: #000;
+        }
+        
+        .stats-info {
+            width: 100%;
+            max-width: 900px;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #666;
+            font-style: italic;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Générateur de Quiz Drapeaux</h1>
+
+    <div class="controls">
+        <div class="input-group">
+            <label>Titre</label>
+            <input type="text" id="gameTitle" value="Flaggen Quiz">
+        </div>
+
+        <div class="input-group">
+            <label>Taille du livre</label>
+            <select id="sizeSelect" onchange="generatePreview()">
+                <option value="6x9" selected>6 x 9 pouces (15.24 x 22.86 cm)</option>
+                <option value="8.5x11">8.5 x 11 pouces (Letter)</option>
+                <option value="a4">A4 (Standard)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Langue des réponses</label>
+            <select id="langSelect" onchange="generatePreview()">
+                <option value="de" selected>Allemand (Deutsch)</option>
+                <option value="fr">Français</option>
+                <option value="en">Anglais (English)</option>
+            </select>
+        </div>
+        
+        <div class="input-group">
+            <label>Style d'impression</label>
+            <select id="styleSelect" onchange="generatePreview()">
+                <option value="color">Couleur (Standard)</option>
+                <option value="bw" selected>Noir & Blanc (Eco/Puzzle)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Nombre de Pages</label>
+            <input type="number" id="pageCount" value="1" min="1" max="50">
+        </div>
+
+        <div class="input-group">
+            <label>Drapeaux par page</label>
+            <input type="number" id="flagsPerPage" value="3" min="1" max="4">
+        </div>
+
+        <button class="btn-gen" onclick="generatePreview()">Générer Aperçu</button>
+        <button class="btn-pdf" id="btnPdf" onclick="downloadPDF()">Télécharger PDF</button>
+    </div>
+    
+    <div class="stats-info" id="statsInfo"></div>
+
+    <div class="preview-container" id="previewContainer">
+        <div style="color:#777; margin-top:50px;">Cliquez sur "Générer Aperçu" pour commencer...</div>
+    </div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+
+        // Dimensions definition in mm
+        const sizes = {
+            "6x9": { width: 152.4, height: 228.6 },
+            "8.5x11": { width: 215.9, height: 279.4 },
+            "a4": { width: 210, height: 297 }
+        };
+
+        // --- DATABASE ---
+        // Liste filtrée 
+        // REMOVED: ng (Nigeria), ml (Mali), am (Armenien), il (Israel), hu (Ungarn), pe (Peru), bg (Bulgarien)
+        
+        const countries = [
+            // North America
+            { code: "ca", names: { de: "Kanada", fr: "Canada", en: "Canada" } },
+            { code: "us", names: { de: "USA", fr: "États-Unis", en: "USA" } },
+            { code: "mx", names: { de: "Mexiko", fr: "Mexique", en: "Mexico" } },
+            
+            // South America (No PE)
+            { code: "br", names: { de: "Brasilien", fr: "Brésil", en: "Brazil" } },
+            { code: "ar", names: { de: "Argentinien", fr: "Argentine", en: "Argentina" } },
+            { code: "co", names: { de: "Kolumbien", fr: "Colombie", en: "Colombia" } },
+            { code: "cl", names: { de: "Chile", fr: "Chili", en: "Chile" } },
+            { code: "ec", names: { de: "Ecuador", fr: "Équateur", en: "Ecuador" } },
+            { code: "ve", names: { de: "Venezuela", fr: "Venezuela", en: "Venezuela" } },
+            { code: "uy", names: { de: "Uruguay", fr: "Uruguay", en: "Uruguay" } },
+            { code: "bo", names: { de: "Bolivien", fr: "Bolivie", en: "Bolivia" } },
+            { code: "py", names: { de: "Paraguay", fr: "Paraguay", en: "Paraguay" } },
+
+            // Europe (No HU, BG)
+            { code: "es", names: { de: "Spanien", fr: "Espagne", en: "Spain" } },
+            { code: "pt", names: { de: "Portugal", fr: "Portugal", en: "Portugal" } },
+            { code: "gb", names: { de: "Ver. Königreich", fr: "Royaume-Uni", en: "United Kingdom" } },
+            { code: "ch", names: { de: "Schweiz", fr: "Suisse", en: "Switzerland" } },
+            { code: "gr", names: { de: "Griechenland", fr: "Grèce", en: "Greece" } },
+            { code: "se", names: { de: "Schweden", fr: "Suède", en: "Sweden" } },
+            { code: "no", names: { de: "Norwegen", fr: "Norvège", en: "Norway" } },
+            { code: "fi", names: { de: "Finnland", fr: "Finlande", en: "Finland" } },
+            { code: "dk", names: { de: "Dänemark", fr: "Danemark", en: "Denmark" } },
+            { code: "cz", names: { de: "Tschechien", fr: "Tchéquie", en: "Czechia" } },
+            { code: "hr", names: { de: "Kroatien", fr: "Croatie", en: "Croatia" } },
+            { code: "rs", names: { de: "Serbien", fr: "Serbie", en: "Serbia" } },
+            { code: "ua", names: { de: "Ukraine", fr: "Ukraine", en: "Ukraine" } },
+            { code: "tr", names: { de: "Türkei", fr: "Turquie", en: "Turkey" } },
+            { code: "is", names: { de: "Island", fr: "Islande", en: "Iceland" } },
+
+            // Africa (No NG, ML)
+            { code: "ma", names: { de: "Marokko", fr: "Maroc", en: "Morocco" } },
+            { code: "dz", names: { de: "Algerien", fr: "Algérie", en: "Algeria" } },
+            { code: "tn", names: { de: "Tunesien", fr: "Tunisie", en: "Tunisia" } },
+            { code: "eg", names: { de: "Ägypten", fr: "Égypte", en: "Egypt" } },
+            { code: "za", names: { de: "Südafrika", fr: "Afrique du Sud", en: "South Africa" } },
+            { code: "ke", names: { de: "Kenia", fr: "Kenya", en: "Kenya" } },
+            { code: "sn", names: { de: "Senegal", fr: "Sénégal", en: "Senegal" } },
+            { code: "ci", names: { de: "Elfenbeinküste", fr: "Côte d'Ivoire", en: "Ivory Coast" } },
+            { code: "cm", names: { de: "Kamerun", fr: "Cameroun", en: "Cameroon" } },
+            { code: "et", names: { de: "Äthiopien", fr: "Éthiopie", en: "Ethiopia" } },
+            { code: "tz", names: { de: "Tansania", fr: "Tanzanie", en: "Tanzania" } },
+            { code: "ug", names: { de: "Uganda", fr: "Ouganda", en: "Uganda" } },
+            { code: "mg", names: { de: "Madagaskar", fr: "Madagascar", en: "Madagascar" } },
+            { code: "ao", names: { de: "Angola", fr: "Angola", en: "Angola" } },
+            { code: "zw", names: { de: "Simbabwe", fr: "Zimbabwe", en: "Zimbabwe" } },
+
+            // Asia & Oceania (No IL)
+            { code: "cn", names: { de: "China", fr: "Chine", en: "China" } },
+            { code: "jp", names: { de: "Japan", fr: "Japon", en: "Japan" } },
+            { code: "kr", names: { de: "Südkorea", fr: "Corée du Sud", en: "South Korea" } },
+            { code: "in", names: { de: "Indien", fr: "Inde", en: "India" } },
+            { code: "th", names: { de: "Thailand", fr: "Thaïlande", en: "Thailand" } },
+            { code: "vn", names: { de: "Vietnam", fr: "Vietnam", en: "Vietnam" } },
+            { code: "ph", names: { de: "Philippinen", fr: "Philippines", en: "Philippines" } },
+            { code: "my", names: { de: "Malaysia", fr: "Malaisie", en: "Malaysia" } },
+            { code: "sg", names: { de: "Singapur", fr: "Singapour", en: "Singapore" } },
+            { code: "pk", names: { de: "Pakistan", fr: "Pakistan", en: "Pakistan" } },
+            { code: "bd", names: { de: "Bangladesch", fr: "Bangladesh", en: "Bangladesh" } },
+            { code: "ir", names: { de: "Iran", fr: "Iran", en: "Iran" } },
+            { code: "sa", names: { de: "Saudi-Arabien", fr: "Arabie Saoudite", en: "Saudi Arabia" } },
+            { code: "ae", names: { de: "V.A.E.", fr: "Émirats Arabe Unis", en: "UAE" } },
+            { code: "qa", names: { de: "Katar", fr: "Qatar", en: "Qatar" } },
+            { code: "au", names: { de: "Australien", fr: "Australie", en: "Australia" } },
+            { code: "nz", names: { de: "Neuseeland", fr: "Nouvelle-Zélande", en: "New Zealand" } },
+            { code: "fj", names: { de: "Fidschi", fr: "Fidji", en: "Fiji" } },
+            
+            // Others (No AM)
+            { code: "jm", names: { de: "Jamaika", fr: "Jamaïque", en: "Jamaica" } },
+            { code: "cu", names: { de: "Kuba", fr: "Cuba", en: "Cuba" } },
+            { code: "do", names: { de: "Dom. Rep.", fr: "Rép. Dominicaine", en: "Dominican Rep." } },
+            { code: "pa", names: { de: "Panama", fr: "Panama", en: "Panama" } },
+            { code: "cr", names: { de: "Costa Rica", fr: "Costa Rica", en: "Costa Rica" } },
+            { code: "ge", names: { de: "Georgien", fr: "Géorgie", en: "Georgia" } },
+            { code: "az", names: { de: "Aserbaidschan", fr: "Azerbaïdjan", en: "Azerbaijan" } },
+            { code: "kz", names: { de: "Kasachstan", fr: "Kazakhstan", en: "Kazakhstan" } },
+            { code: "uz", names: { de: "Usbekistan", fr: "Ouzbékistan", en: "Uzbekistan" } },
+            { code: "np", names: { de: "Nepal", fr: "Népal", en: "Nepal" } },
+            { code: "lk", names: { de: "Sri Lanka", fr: "Sri Lanka", en: "Sri Lanka" } },
+            { code: "tw", names: { de: "Taiwan", fr: "Taïwan", en: "Taiwan" } },
+            { code: "hk", names: { de: "Hongkong", fr: "Hong Kong", en: "Hong Kong" } }
+        ];
+
+        let globalPagesData = [];
+
+        function generatePreview() {
+            const pageCount = parseInt(document.getElementById('pageCount').value);
+            const flagsPerPage = parseInt(document.getElementById('flagsPerPage').value);
+            const titleText = document.getElementById('gameTitle').value;
+            const lang = document.getElementById('langSelect').value;
+            const style = document.getElementById('styleSelect').value;
+            const sizeKey = document.getElementById('sizeSelect').value;
+            
+            // Update Stats Info
+            const totalNeeded = pageCount * flagsPerPage;
+            const totalAvailable = countries.length;
+            const statsDiv = document.getElementById('statsInfo');
+            statsDiv.textContent = `Pays demandés: ${totalNeeded} / Pays disponibles: ${totalAvailable}`;
+
+            if (totalNeeded > totalAvailable) {
+                alert(`Pas assez de pays ! Vous demandez ${totalNeeded} drapeaux, mais la base de données n'en contient que ${totalAvailable}. Réduisez le nombre de pages ou de drapeaux.`);
+                return;
+            }
+
+            // Set CSS Variables for preview
+            const dims = sizes[sizeKey];
+            document.documentElement.style.setProperty('--page-w', dims.width + 'mm');
+            document.documentElement.style.setProperty('--page-h', dims.height + 'mm');
+
+            const container = document.getElementById('previewContainer');
+            container.innerHTML = '';
+            globalPagesData = [];
+
+            // 1. Mélanger TOUTE la liste UNE SEULE FOIS (Logic: No Repetition)
+            let shuffledCountries = [...countries].sort(() => 0.5 - Math.random());
+
+            // 2. Découper la liste pour chaque page
+            for (let i = 0; i < pageCount; i++) {
+                // Take the chunk for this page
+                const start = i * flagsPerPage;
+                const end = start + flagsPerPage;
+                const selection = shuffledCountries.slice(start, end);
+                
+                globalPagesData.push(selection);
+
+                const pairDiv = document.createElement('div');
+                pairDiv.className = 'page-pair';
+                if (style === 'bw') pairDiv.classList.add('bw-style');
+
+                // --- FEUILLE PUZZLE ---
+                const sheetPuzzle = document.createElement('div');
+                sheetPuzzle.className = 'sheet';
+                const titleP = document.createElement('div');
+                titleP.className = 'sheet-title';
+                titleP.textContent = titleText; 
+                sheetPuzzle.appendChild(titleP);
+
+                selection.forEach(c => {
+                    const item = document.createElement('div');
+                    item.className = 'flag-item';
+                    item.innerHTML = `
+                        <img class="flag-img" src="https://flagcdn.com/w320/${c.code}.png" alt="flag">
+                        <div class="dotted-line"></div>
+                    `;
+                    sheetPuzzle.appendChild(item);
+                });
+
+                // --- FEUILLE SOLUTION ---
+                const sheetSol = document.createElement('div');
+                sheetSol.className = 'sheet';
+                const titleS = document.createElement('div');
+                titleS.className = 'sheet-title';
+                titleS.style.color = style === 'bw' ? '#000' : "#c0392b";
+                
+                let solTitle = "Lösung";
+                if(lang === 'fr') solTitle = "Solution";
+                if(lang === 'en') solTitle = "Answer Key";
+                
+                titleS.textContent = solTitle; 
+                sheetSol.appendChild(titleS);
+
+                selection.forEach(c => {
+                    const solItem = document.createElement('div');
+                    solItem.className = 'solution-item';
+                    const nameText = c.names[lang] || c.names['de'];
+
+                    solItem.innerHTML = `
+                        <img class="solution-img" src="https://flagcdn.com/w320/${c.code}.png">
+                        <span class="solution-text">${nameText}</span>
+                    `;
+                    sheetSol.appendChild(solItem);
+                });
+
+                pairDiv.appendChild(sheetPuzzle);
+                pairDiv.appendChild(sheetSol);
+                container.appendChild(pairDiv);
+            }
+        }
+
+        function getBase64ImageFromURL(url, isBW) {
+            return new Promise((resolve, reject) => {
+                var img = new Image();
+                img.setAttribute("crossOrigin", "anonymous");
+                img.onload = () => {
+                    var canvas = document.createElement("canvas");
+                    canvas.width = img.width;
+                    canvas.height = img.height;
+                    var ctx = canvas.getContext("2d");
+                    
+                    if (isBW) {
+                        ctx.filter = 'grayscale(100%) contrast(120%) brightness(110%)';
+                    }
+                    
+                    ctx.drawImage(img, 0, 0);
+                    
+                    if (isBW) {
+                        ctx.strokeStyle = "black";
+                        ctx.lineWidth = 10; 
+                        ctx.strokeRect(0, 0, canvas.width, canvas.height);
+                    }
+
+                    var dataURL = canvas.toDataURL("image/png");
+                    resolve(dataURL);
+                };
+                img.onerror = error => reject(error);
+                img.src = url;
+            });
+        }
+
+        async function downloadPDF() {
+            if (globalPagesData.length === 0) {
+                alert("Veuillez d'abord générer un aperçu.");
+                return;
+            }
+
+            const btn = document.getElementById('btnPdf');
+            const originalText = btn.textContent;
+            btn.textContent = "Génération...";
+            btn.disabled = true;
+
+            const titleText = document.getElementById('gameTitle').value;
+            const lang = document.getElementById('langSelect').value;
+            const style = document.getElementById('styleSelect').value;
+            const sizeKey = document.getElementById('sizeSelect').value;
+            const isBW = (style === 'bw');
+
+            // Retrieve dimensions from our mapping
+            const dims = sizes[sizeKey];
+            const pageWidth = dims.width;
+            const pageHeight = dims.height;
+
+            // Create PDF with Custom Format
+            const doc = new jsPDF({ 
+                unit: 'mm', 
+                format: [pageWidth, pageHeight] 
+            });
+
+            // Adjust sizing relative to page width
+            const flagW = pageWidth * 0.35; // Flag takes 35% of page width
+            const flagH = flagW * 0.66; // Maintain aspect ratio roughly
+            const xPos = (pageWidth - flagW) / 2;
+
+            for (let i = 0; i < globalPagesData.length; i++) {
+                const countries = globalPagesData[i];
+
+                // -----------------------------
+                // PAGE PUZZLE
+                // -----------------------------
+                if (i > 0) doc.addPage();
+
+                doc.setFont("times", "bold");
+                doc.setFontSize(24);
+                doc.setTextColor(0, 0, 0);
+                
+                doc.text(titleText, pageWidth / 2, 20, { align: 'center' });
+
+                let cursorY = 35;
+                // Calculate available space for items
+                const availableHeight = pageHeight - 45; // Minus header and bottom margin
+                const spacePerFlag = availableHeight / countries.length; 
+
+                for (const country of countries) {
+                    try {
+                        const imgData = await getBase64ImageFromURL(`https://flagcdn.com/w640/${country.code}.png`, isBW);
+                        doc.addImage(imgData, 'PNG', xPos, cursorY, flagW, flagH);
+
+                        const lineY = cursorY + flagH + 10;
+                        doc.setLineWidth(0.5);
+                        doc.setLineDashPattern([1, 1], 0);
+                        doc.line(pageWidth * 0.15, lineY, pageWidth * 0.85, lineY);
+                        doc.setLineDashPattern([], 0);
+
+                        cursorY += spacePerFlag;
+                    } catch (e) { console.error(e); }
+                }
+
+                // -----------------------------
+                // PAGE SOLUTION
+                // -----------------------------
+                doc.addPage();
+                doc.setFont("times", "bold");
+                doc.setFontSize(24);
+                
+                if(isBW) doc.setTextColor(0,0,0);
+                else doc.setTextColor(200, 0, 0);
+                
+                let solTitle = "Lösung";
+                if(lang === 'fr') solTitle = "Solution";
+                if(lang === 'en') solTitle = "Answer Key";
+
+                doc.text(solTitle, pageWidth / 2, 20, { align: 'center' });
+                
+                doc.setTextColor(0);
+                cursorY = 35;
+
+                for (const country of countries) {
+                    try {
+                        const imgData = await getBase64ImageFromURL(`https://flagcdn.com/w640/${country.code}.png`, isBW);
+                        doc.addImage(imgData, 'PNG', xPos, cursorY, flagW, flagH);
+                        
+                        doc.setFont("helvetica", "bold");
+                        doc.setFontSize(16);
+                        const nameText = country.names[lang] || country.names['de'];
+                        doc.text(nameText, pageWidth / 2, cursorY + flagH + 8, { align: 'center' });
+
+                        cursorY += spacePerFlag;
+                    } catch (e) { console.error(e); }
+                }
+            }
+
+            doc.save(`Flaggen_${sizeKey}_${lang.toUpperCase()}.pdf`);
+            
+            btn.textContent = originalText;
+            btn.disabled = false;
+        }
+
+        // Initialize with default (6x9)
+        window.onload = generatePreview;
+    </script>
+</body>
+</html>

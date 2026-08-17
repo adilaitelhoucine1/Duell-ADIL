@@ -1,0 +1,223 @@
+:root {
+    --bg-color: #f0f2f5;
+    --primary-color: #3f51b5;
+    --accent-color: #ff4081;
+    --text-color: #333;
+    --cell-bg: #fff;
+    --cell-border: #ccd0d5;
+    --hover-bg: #e8eaf6;
+    --selected-bg: #c5cae9;
+    --fixed-color: #333;
+    --user-color: #3f51b5;
+    --error-color: #f44336;
+    --grid-gap: 5px;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Poppins', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.container {
+    width: 100%;
+    max-width: 800px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 15px;
+    background: white;
+    padding: 15px 25px;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+h1 {
+    margin: 0;
+    font-size: 1.8rem;
+    color: var(--primary-color);
+}
+
+.subtitle {
+    font-size: 1rem;
+    color: #888;
+    font-weight: 400;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+button {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 6px;
+    background-color: var(--primary-color);
+    color: white;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    transition: transform 0.1s, opacity 0.2s;
+}
+
+button:hover {
+    opacity: 0.9;
+    transform: translateY(-1px);
+}
+
+button.secondary {
+    background-color: #9fa8da;
+}
+
+select {
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    font-family: inherit;
+}
+
+main {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    width: 100%;
+}
+
+.grid-container {
+    background: white;
+    padding: 20px;
+    border-radius: 12px;
+    box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+    display: grid;
+    /* Grid template columns will be set via JS based on sizes */
+    gap: 0; 
+    user-select: none;
+}
+
+.cell {
+    width: 50px;
+    height: 50px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.4rem;
+    font-weight: 700;
+    background: var(--cell-bg);
+    border: 2px solid var(--cell-border);
+    cursor: pointer;
+    position: relative;
+    border-radius: 6px;
+    transition: background 0.2s;
+}
+
+.cell:hover {
+    background: var(--hover-bg);
+}
+
+.cell.selected {
+    background: var(--selected-bg);
+    border-color: var(--primary-color);
+}
+
+.cell.fixed {
+    color: var(--fixed-color);
+    background: #f5f5f5;
+    cursor: default;
+}
+
+.cell.user-input {
+    color: var(--user-color);
+}
+
+.cell.error {
+    background: #ffebee;
+    color: var(--error-color);
+    border-color: var(--error-color);
+}
+
+/* Inequality markers */
+.inequality {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 1.2rem;
+    color: #777;
+    font-weight: bold;
+}
+
+.inequality.horizontal {
+    width: 20px;
+    height: 50px;
+}
+
+.inequality.vertical {
+    width: 50px;
+    height: 20px;
+}
+
+/* Intersection empty spots */
+.intersection {
+    width: 20px;
+    height: 20px;
+}
+
+.rules-panel {
+    background: white;
+    padding: 15px 25px;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 600px;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+}
+
+.rules-panel h3 {
+    margin-top: 0;
+    color: var(--primary-color);
+}
+
+.rules-panel ul {
+    padding-left: 20px;
+    margin-bottom: 0;
+    color: #555;
+    line-height: 1.6;
+}
+
+.message-area {
+    height: 30px;
+    font-weight: bold;
+    color: var(--primary-color);
+    text-align: center;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .cell {
+        width: 35px;
+        height: 35px;
+        font-size: 1rem;
+    }
+    .inequality.horizontal { width: 15px; height: 35px; font-size: 0.9rem; }
+    .inequality.vertical { width: 35px; height: 15px; font-size: 0.9rem; }
+    .intersection { width: 15px; height: 15px; }
+}

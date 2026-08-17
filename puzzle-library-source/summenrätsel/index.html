@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Générateur Summenrätsel (No Title)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --box-size: 50px;
+            --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: #f4f4f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        h1 { margin-bottom: 20px; color: #2c3e50; }
+
+        /* --- CONTROL PANEL --- */
+        .controls {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            max-width: 950px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label { font-weight: bold; font-size: 0.85rem; color: #555; }
+        
+        select, input {
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            width: 140px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            transition: transform 0.1s, opacity 0.2s;
+            height: 46px; 
+        }
+
+        button:active { transform: scale(0.98); }
+        button:hover { opacity: 0.9; }
+
+        .btn-preview { background-color: #3498db; }
+        .btn-pdf { background-color: #27ae60; }
+
+        /* --- PREVIEW AREA --- */
+        .preview-container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+        }
+        
+        .preview-label {
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sheet {
+            background: white;
+            width: 210mm; 
+            height: 297mm; 
+            padding: 15mm;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            transform: scale(0.55); 
+            transform-origin: top center;
+            border: 1px solid #eee;
+        }
+
+        /* --- HTML PREVIEW GRID --- */
+        .puzzle-wrapper {
+            display: grid;
+            grid-template-columns: repeat(6, auto);
+            gap: 10px;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            /* Removed top margin since title is gone */
+            margin-top: 10px; 
+        }
+
+        .cell-group { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        
+        .cell {
+            width: 60px; height: 60px;
+            border: 2px solid #333;
+            display: flex; justify-content: center; align-items: center;
+            font-size: 28px; font-weight: bold;
+        }
+        
+        .sign { font-size: 24px; font-weight: bold; color: #555; }
+        
+        .legend {
+            margin-top: 60px;
+            display: flex;
+            justify-content: space-around;
+            width: 90%;
+            font-size: 24px;
+            font-family: monospace;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Générateur Summenrätsel</h1>
+
+    <div class="controls">
+        <div class="input-group">
+            <label>Difficulté</label>
+            <select id="difficulty">
+                <option value="0.3">Facile</option>
+                <option value="0.5" selected>Moyen</option>
+                <option value="0.7">Difficile</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Nombre de Puzzles</label>
+            <input type="number" id="pageCount" value="5" min="1" max="50">
+        </div>
+
+        <div class="input-group">
+            <label>Taille Chiffres (pt)</label>
+            <input type="number" id="numSize" value="14" min="8" max="30">
+        </div>
+
+        <button class="btn-preview" onclick="generatePreview()">Prévisualiser</button>
+        <button class="btn-pdf" id="btnPdf" onclick="downloadPDF()">Télécharger PDF</button>
+    </div>
+
+    <div class="preview-container">
+        <div class="preview-label">Aperçu</div>
+        <div class="sheet" id="previewSheet">
+            <!-- No Title Here anymore -->
+            <div id="gridContainer" class="puzzle-wrapper"></div>
+            <div id="legendContainer" class="legend"></div>
+        </div>
+    </div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+        const gridSize = 5;
+
+        // --- 1. LOGIC: Create Data ---
+        function createPuzzleData(difficulty) {
+            let grid = [];
+            for (let r = 0; r < gridSize; r++) {
+                let row = [];
+                for (let c = 0; c < gridSize; c++) {
+                    row.push(Math.floor(Math.random() * 9) + 1); 
+                }
+                grid.push(row);
+            }
+
+            let rowSums = grid.map(row => row.reduce((a, b) => a + b, 0));
+            let colSums = [];
+            for (let c = 0; c < gridSize; c++) {
+                let sum = 0;
+                for (let r = 0; r < gridSize; r++) {
+                    sum += grid[r][c];
+                }
+                colSums.push(sum);
+            }
+
+            let mask = [];
+            for (let r = 0; r < gridSize; r++) {
+                let rowMask = [];
+                for (let c = 0; c < gridSize; c++) {
+                    rowMask.push(Math.random() >= difficulty);
+                }
+                mask.push(rowMask);
+            }
+
+            return { grid, mask, rowSums, colSums };
+        }
+
+        // --- 2. HTML PREVIEW ---
+        function generatePreview() {
+            const container = document.getElementById('gridContainer');
+            const legend = document.getElementById('legendContainer');
+            const diff = parseFloat(document.getElementById('difficulty').value);
+            
+            // Apply font sizes to preview for consistency
+            const numSize = (parseInt(document.getElementById('numSize').value) + 10) + 'px'; // scaling for screen
+
+            const data = createPuzzleData(diff);
+            
+            container.innerHTML = '';
+            legend.innerHTML = '';
+
+            for (let r = 0; r < gridSize; r++) {
+                for (let c = 0; c < gridSize; c++) {
+                    let group = document.createElement('div');
+                    group.className = 'cell-group';
+                    
+                    let cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.innerText = data.mask[r][c] ? data.grid[r][c] : ''; 
+                    cell.style.fontSize = numSize; // Apply size
+                    group.appendChild(cell);
+
+                    let sign = document.createElement('div');
+                    sign.className = 'sign';
+                    if (r < gridSize - 1) {
+                        sign.innerText = '+';
+                    } else {
+                        sign.innerHTML = '=<br>' + String.fromCharCode(97 + c);
+                        sign.style.textAlign = 'center';
+                        sign.style.lineHeight = '1.2';
+                    }
+                    group.appendChild(sign);
+                    container.appendChild(group);
+
+                    if (c === gridSize - 1) {
+                        let sumDiv = document.createElement('div');
+                        sumDiv.innerText = `= ${String.fromCharCode(65 + r)}`;
+                        sumDiv.style.fontSize = "28px";
+                        sumDiv.style.fontWeight = "bold";
+                        sumDiv.style.marginLeft = "15px";
+                        sumDiv.style.marginBottom = r < gridSize - 1 ? '30px' : '60px';
+                        container.appendChild(sumDiv);
+                    }
+                }
+            }
+
+            let left = "", right = "";
+            for(let i=0; i<gridSize; i++) {
+                left += `<div>${String.fromCharCode(65+i)} = ${data.rowSums[i]}</div>`;
+                right += `<div>${String.fromCharCode(97+i)} = ${data.colSums[i]}</div>`;
+            }
+            legend.innerHTML = `<div>${left}</div><div>${right}</div>`;
+        }
+
+        // --- 3. PDF GENERATION ---
+        async function downloadPDF() {
+            const btn = document.getElementById('btnPdf');
+            const originalText = btn.innerText;
+            btn.innerText = "Génération...";
+            btn.disabled = true;
+
+            await new Promise(r => setTimeout(r, 100));
+
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const pageCount = parseInt(document.getElementById('pageCount').value);
+            const difficulty = parseFloat(document.getElementById('difficulty').value);
+            
+            // Get Font Size
+            const sizeNum = parseInt(document.getElementById('numSize').value);
+            
+            // Generate all puzzles
+            let allPuzzles = [];
+            for(let i=0; i<pageCount; i++) {
+                allPuzzles.push(createPuzzleData(difficulty));
+            }
+
+            // Loop: Puzzle -> Solution -> Puzzle ...
+            for(let i=0; i<pageCount; i++) {
+                
+                // 1. Draw PUZZLE Page
+                if(i > 0) doc.addPage(); 
+                drawPageOnPDF(doc, allPuzzles[i], false, sizeNum);
+
+                // 2. Draw SOLUTION Page
+                doc.addPage(); 
+                drawPageOnPDF(doc, allPuzzles[i], true, sizeNum);
+            }
+
+            doc.save('Summenraetsel.pdf');
+
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+
+        function drawPageOnPDF(doc, data, isSolution, sizeNum) {
+            const startX = 35;
+            const startY = 40;
+            const cellSize = 18;
+            const gap = 8;
+            
+            doc.setFont("helvetica", "bold");
+            
+            // --- NO TITLE ---
+
+            // --- GRID ---
+            doc.setLineWidth(0.5);
+
+            for(let r=0; r<gridSize; r++) {
+                for(let c=0; c<gridSize; c++) {
+                    let x = startX + c * (cellSize + gap);
+                    let y = startY + r * (cellSize + gap + 5); 
+
+                    // Draw Box
+                    doc.rect(x, y, cellSize, cellSize);
+
+                    // Draw Number
+                    let val = data.grid[r][c];
+                    if (isSolution || data.mask[r][c]) {
+                        // Green if it was a hidden number revealed in solution
+                        if(isSolution && !data.mask[r][c]) doc.setTextColor(0, 150, 0); 
+                        
+                        // USE CUSTOM FONT SIZE FOR NUMBERS
+                        doc.setFontSize(sizeNum);
+                        
+                        // Centering logic based on font size roughly
+                        doc.text(val.toString(), x + cellSize/2, y + cellSize/1.5, { align: "center" });
+                        doc.setTextColor(0);
+                    }
+
+                    // Signs (+, =)
+                    doc.setFontSize(12); // Keep signs standard
+                    if (r < gridSize - 1) {
+                        doc.text("+", x + cellSize/2, y + cellSize + 5, { align: "center" });
+                    } else {
+                        doc.text("=", x + cellSize/2, y + cellSize + 5, { align: "center" });
+                        doc.setFontSize(14);
+                        doc.text(String.fromCharCode(97+c), x + cellSize/2, y + cellSize + 11, { align: "center" });
+                    }
+
+                    // Row Sums (= A)
+                    if (c === gridSize - 1) {
+                        doc.setFontSize(16); // Keep sums standard size
+                        doc.text(`=  ${String.fromCharCode(65+r)}`, x + cellSize + 5, y + cellSize/1.5);
+                    }
+                }
+            }
+
+            // Legend
+            const legendY = startY + (gridSize * (cellSize + gap + 5)) + 15;
+            doc.setFontSize(16);
+            
+            for(let i=0; i<gridSize; i++) {
+                doc.text(`${String.fromCharCode(65+i)} = ${data.rowSums[i]}`, 60, legendY + (i*8));
+            }
+
+            for(let i=0; i<gridSize; i++) {
+                doc.text(`${String.fromCharCode(97+i)} = ${data.colSums[i]}`, 120, legendY + (i*8));
+            }
+            
+            // NO FOOTER
+        }
+
+        window.onload = generatePreview;
+    </script>
+</body>
+</html>

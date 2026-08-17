@@ -1,0 +1,426 @@
+:root {
+    --bg-color: #e0e5ec;
+    --text-color: #2d3436;
+    --lock-body-color: #cfd8dc;
+    --lock-border: #b0bec5;
+    --screen-bg: #eceff1;
+    --screen-text: #263238;
+    --accent-color: #00bcd4;
+    --correct-color: #4caf50;
+    --wrong-color: #f44336;
+    --partial-color: #ff9800;
+}
+
+body {
+    margin: 0;
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--bg-color);
+    color: var(--text-color);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+}
+
+.game-container {
+    width: 90%;
+    max-width: 1000px;
+    background: white;
+    padding: 2rem;
+    border-radius: 20px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+}
+
+header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    border-bottom: 2px solid #f0f0f0;
+    padding-bottom: 1rem;
+}
+
+h1 {
+    font-family: 'Orbitron', sans-serif;
+    margin: 0;
+    color: #37474f;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+}
+
+button, select {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.2s;
+    background: #f5f5f5;
+    color: #333;
+    font-family: inherit;
+    box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
+}
+
+button:hover {
+    background: #e0e0e0;
+    transform: translateY(-1px);
+}
+
+#new-game-btn {
+    background-color: var(--accent-color);
+    color: white;
+}
+
+#new-game-btn:hover {
+    background-color: #00acc1;
+}
+
+main {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 2rem;
+    justify-content: center;
+}
+
+.clues-section {
+    flex: 1;
+    min-width: 300px;
+    background: #fafafa;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid #eee;
+}
+
+.clues-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.clue-item {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 10px;
+    background: white;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+}
+
+.clue-numbers {
+    display: flex;
+    gap: 5px;
+    font-family: 'Orbitron', sans-serif;
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+.clue-num {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border: 1px solid #ccc;
+    background: #fff;
+    border-radius: 4px;
+}
+
+.clue-text {
+    font-size: 0.95rem;
+    color: #555;
+    line-height: 1.4;
+}
+
+.lock-interface {
+    flex: 0 0 350px;
+}
+
+.lock-body {
+    background: linear-gradient(135deg, #cfd8dc 0%, #b0bec5 100%);
+    padding: 20px;
+    border-radius: 20px;
+    box-shadow: 
+        inset 0 0 0 2px rgba(255,255,255,0.5),
+        0 10px 20px rgba(0,0,0,0.2),
+        0 0 0 5px #90a4ae;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.screen-area {
+    background: #37474f;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.5);
+    border: 2px solid #546e7a;
+    text-align: center;
+    color: white;
+    font-size: 1.8rem;
+}
+
+.status-message {
+    color: var(--accent-color);
+    font-family: 'Orbitron', sans-serif;
+    font-size: 0.8rem;
+    margin-bottom: 10px;
+    height: 1.2rem;
+    letter-spacing: 1px;
+}
+
+.display {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    height: 60px;
+}
+
+.digit-slot {
+    width: 50px;
+    height: 60px;
+    background: #263238;
+    color: whitesmoke; /* Fixed color so it persists */
+    font-family: 'Orbitron', sans-serif;
+    font-size: 2.5rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 5px;
+    box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+    border-bottom: 2px solid var(--accent-color);
+}
+
+.keypad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+}
+
+.key {
+    background: linear-gradient(to bottom, #f5f5f5, #e0e0e0);
+    border: 1px solid #ccc;
+    height: 50px;
+    font-size: 1.5rem;
+    font-family: 'Orbitron', sans-serif;
+    color: #455a64;
+    border-radius: 8px;
+    box-shadow: 0 4px 0 #bdbdbd;
+    transition: all 0.1s;
+}
+
+.key:active {
+    transform: translateY(4px);
+    box-shadow: 0 0 0 #bdbdbd;
+}
+
+#submit-btn {
+    background: linear-gradient(to bottom, #a5d6a7, #81c784);
+    box-shadow: 0 4px 0 #66bb6a;
+    color: #1b5e20;
+}
+
+#submit-btn:active {
+    box-shadow: 0 0 0 #66bb6a;
+}
+
+#clear-btn {
+    background: linear-gradient(to bottom, #ef9a9a, #e57373);
+    box-shadow: 0 4px 0 #e53935;
+    color: #b71c1c;
+}
+
+#clear-btn:active {
+    box-shadow: 0 0 0 #e53935;
+}
+
+/* Animations */
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+    20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+
+.shake {
+    animation: shake 0.5s;
+}
+
+@keyframes flash-green {
+    0%, 100% { background: #37474f; }
+    50% { background: #2e7d32; }
+}
+
+.success-bg {
+    animation: flash-green 1s;
+}
+
+@keyframes flash-red {
+    0%, 100% { background: #37474f; }
+    50% { background: #c62828; }
+}
+
+.error-bg {
+    animation: flash-red 0.5s;
+}
+
+/* PDF Export Section */
+.pdf-section {
+    width: 100%;
+    background: #fafafa;
+    padding: 1.5rem;
+    border-radius: 12px;
+    border: 1px solid #eee;
+    margin-top: 1rem;
+}
+
+.pdf-section h2 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    color: #37474f;
+}
+
+.pdf-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+
+.pdf-controls label {
+    font-weight: 500;
+    color: #555;
+}
+
+.pdf-controls input[type="number"] {
+    width: 80px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 1rem;
+    text-align: center;
+}
+
+#pdf-btn {
+    background: linear-gradient(to bottom, #7986cb, #5c6bc0);
+    color: white;
+    font-weight: 600;
+    padding: 12px 20px;
+    box-shadow: 0 4px 0 #3f51b5;
+}
+
+#pdf-btn:hover {
+    background: linear-gradient(to bottom, #5c6bc0, #3f51b5);
+}
+
+#pdf-btn:active {
+    transform: translateY(4px);
+    box-shadow: 0 0 0 #3f51b5;
+}
+
+#pdf-btn:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+}
+
+/* Responsive */
+@media (max-width: 700px) {
+    main {
+        flex-direction: column-reverse; /* Keypad on top/first might be better on mobile? No, visual flow: clues then input. */
+    }
+    
+    .lock-interface {
+        width: 100%;
+        flex: auto;
+    }
+}
+
+/* Verification Table Styles */
+.verification-section {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 2px solid #e0e0e0;
+}
+
+.verification-section h3 {
+    margin: 0 0 1rem 0;
+    color: #37474f;
+    font-family: 'Orbitron', sans-serif;
+}
+
+.answer-display {
+    font-size: 1.3rem;
+    margin-bottom: 1rem;
+    padding: 10px 15px;
+    background: linear-gradient(135deg, #4caf50, #81c784);
+    color: white;
+    border-radius: 8px;
+    display: inline-block;
+}
+
+.answer-display strong {
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 8px;
+    font-size: 1.5rem;
+}
+
+.verification-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.9rem;
+}
+
+.verification-table th,
+.verification-table td {
+    padding: 10px;
+    text-align: left;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.verification-table thead th {
+    background: #37474f;
+    color: white;
+    font-weight: 500;
+}
+
+.verification-table tbody tr:hover {
+    background: #f5f5f5;
+}
+
+.clue-cell {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: bold;
+    letter-spacing: 3px;
+    font-size: 1rem;
+}
+
+.type-cell {
+    font-size: 0.85rem;
+    color: #666;
+}
+
+.explanation-cell {
+    font-size: 0.85rem;
+    line-height: 1.6;
+}
+
+.explanation-cell .correct {
+    color: var(--correct-color);
+    font-weight: bold;
+}
+
+.explanation-cell .wrong {
+    color: var(--wrong-color);
+    font-weight: bold;
+}
+
+.explanation-cell .partial {
+    color: var(--partial-color);
+    font-weight: bold;
+}

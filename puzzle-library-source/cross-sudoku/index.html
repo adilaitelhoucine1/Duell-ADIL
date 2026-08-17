@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cross Sudoku</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@400;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- PDF Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+<body>
+    <div class="main-container">
+        <header>
+            <h1>Cross Sudoku</h1>
+            <div class="controls">
+                <div class="control-group">
+                    <label for="language">Language:</label>
+                    <select id="language">
+                        <option value="en">English</option>
+                        <option value="de">Deutsch</option>
+                        <option value="fr">Français</option>
+                        <option value="it">Italiano</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label for="difficulty">Difficulty:</label>
+                    <select id="difficulty">
+                        <option value="easy">Easy</option>
+                        <option value="medium" selected>Medium</option>
+                        <option value="hard">Hard</option>
+                    </select>
+                </div>
+                <button id="new-game-btn">New Game</button>
+                <button id="check-btn">Check</button>
+                <button id="solve-btn" class="solve-btn">Solution</button>
+                <div class="pdf-controls">
+                    <label for="pdf-count">Puzzles:</label>
+                    <input type="number" id="pdf-count" value="5" min="1" max="50">
+                    <label style="font-size: 0.9em; margin: 0 5px;"><input type="checkbox" id="pdf-hide-title" checked> Hide Title</label>
+                    <button id="pdf-btn" class="pdf-btn">Export</button>
+                </div>
+                <span id="pdf-status"></span>
+            </div>
+        </header>
+
+        <div class="game-content">
+            <div class="cross-layout">
+                <!-- Top Grid - 6 rows x 9 cols -->
+                <div class="grid-wrapper top">
+                    <div id="grid-top" class="sudoku-grid grid-top" data-grid="1"></div>
+                </div>
+                
+                <!-- Middle Row: Left (9x6), Center (9x9), Right (9x6) -->
+                <div class="middle-row">
+                    <div class="grid-wrapper left">
+                        <div id="grid-left" class="sudoku-grid grid-left" data-grid="3"></div>
+                    </div>
+                    <div class="grid-wrapper center">
+                        <div id="grid-center" class="sudoku-grid grid-center" data-grid="0"></div>
+                    </div>
+                    <div class="grid-wrapper right">
+                        <div id="grid-right" class="sudoku-grid grid-right" data-grid="4"></div>
+                    </div>
+                </div>
+                
+                <!-- Bottom Grid - 6 rows x 9 cols -->
+                <div class="grid-wrapper bottom">
+                    <div id="grid-bottom" class="sudoku-grid grid-bottom" data-grid="2"></div>
+                </div>
+            </div>
+
+            <div class="numpad">
+                <button class="num-btn" data-val="1">1</button>
+                <button class="num-btn" data-val="2">2</button>
+                <button class="num-btn" data-val="3">3</button>
+                <button class="num-btn" data-val="4">4</button>
+                <button class="num-btn" data-val="5">5</button>
+                <button class="num-btn" data-val="6">6</button>
+                <button class="num-btn" data-val="7">7</button>
+                <button class="num-btn" data-val="8">8</button>
+                <button class="num-btn" data-val="9">9</button>
+                <button class="num-btn action-btn" data-action="erase">⌫</button>
+            </div>
+        </div>
+
+        <div id="message-area" class="message-area"></div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

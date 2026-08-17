@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Anagram Generator (Offline / Commercial Free)</title>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #2980b9;
+            --bg: #f5f6fa;
+        }
+
+        body {
+            /* Standard System Fonts - Safe for Commercial Use */
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+            background: var(--bg);
+            color: var(--primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin-bottom: 20px; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* --- CONTROLS --- */
+        .controls {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+            width: 100%;
+            max-width: 850px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin-bottom: 30px;
+            border: 1px solid #dcdde1;
+        }
+
+        .input-group {
+            flex: 1;
+            min-width: 200px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label { font-weight: 700; font-size: 0.85rem; color: #7f8c8d; text-transform: uppercase; }
+        
+        textarea {
+            resize: vertical;
+            height: 120px;
+            padding: 10px;
+            border: 2px solid #ecf0f1;
+            border-radius: 6px;
+            font-family: monospace; /* Monospace for list editing */
+        }
+
+        input[type="text"], input[type="number"], select, input[type="file"] {
+            padding: 10px;
+            border: 2px solid #ecf0f1;
+            border-radius: 6px;
+            font-family: inherit;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 800;
+            color: white;
+            height: 48px;
+            margin-top: auto;
+            text-transform: uppercase;
+            font-size: 14px;
+            transition: opacity 0.2s;
+        }
+        button:hover { opacity: 0.9; }
+
+        .btn-preview { background-color: var(--accent); }
+        .btn-pdf { background-color: #27ae60; }
+        
+        /* --- PREVIEW --- */
+        .preview-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .preview-container {
+            background: white;
+            padding: 20px;
+            border: 1px solid #bdc3c7;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            /* 6x9 inches in mm */
+            width: 152.4mm; 
+            min-height: 228.6mm;
+            /* Screen scaling */
+            transform: scale(0.85); 
+            transform-origin: top center;
+            box-sizing: border-box;
+        }
+
+        /* Default font style for the preview */
+        .custom-font-target {
+            font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+        }
+
+        .page-title {
+            text-align: center;
+            font-size: 24pt;
+            font-weight: 800;
+            margin-bottom: 30px;
+            text-transform: uppercase;
+            color: #2c3e50;
+        }
+
+        .anagram-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .scrambled-text {
+            width: 40%;
+            text-align: right;
+            padding-right: 15px;
+            font-family: 'Courier New', monospace; /* Courier is standard */
+            font-weight: 700;
+            font-size: 13pt;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            white-space: nowrap;
+        }
+
+        .boxes-container {
+            display: flex;
+            gap: 1px;
+            width: 60%;
+        }
+
+        .letter-box {
+            width: 24px;
+            height: 24px;
+            border: 1px solid #2c3e50;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12pt;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>Anagram Generator (6x9)</h1>
+
+    <div class="controls">
+        <div class="input-group" style="flex: 100%;">
+            <label>Word List</label>
+            <textarea id="wordList">UNBEDINGT
+REIHENFOLGE
+WEIHNACHTEN
+VERKEHRSKREIS
+LICHTWESEN
+LUFTACHT
+VERPACKUNG
+GEZEITEN
+VERMUTLICH
+BESCHEIDEN</textarea>
+        </div>
+
+        <div class="input-group">
+            <label>Title</label>
+            <input type="text" id="puzzleTitle" value="ANAGRAMME">
+        </div>
+
+        <div class="input-group">
+            <label>Upload Font (Optional)</label>
+            <input type="file" id="fontInput" accept=".ttf">
+        </div>
+
+        <div class="input-group">
+            <label>Words Per Page</label>
+            <input type="number" id="wordsPerPage" value="10" min="5" max="15">
+        </div>
+
+        <div class="input-group">
+            <label>Mode</label>
+            <select id="scrambleMode">
+                <option value="keepEnds">Keep First/Last (Easy)</option>
+                <option value="full">Scramble All (Hard)</option>
+            </select>
+        </div>
+
+        <div class="input-group" style="flex-direction: row; align-items: flex-end;">
+            <button class="btn-preview" onclick="updatePreview()">Preview</button>
+            <div style="width:10px"></div>
+            <button class="btn-pdf" id="btnPdf" onclick="generatePDF()">Download PDF</button>
+        </div>
+    </div>
+
+    <div class="preview-wrapper">
+        <div class="preview-container" id="previewArea"></div>
+    </div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+
+        // --- GLOBAL FONT VARIABLES ---
+        let customFontBase64 = null;
+        let customFontName = "Helvetica"; // Default PDF font (Standard, Safe)
+        let customFontUploaded = false;
+
+        // --- 1. HANDLE FONT UPLOAD ---
+        document.getElementById('fontInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            
+            // 1. Load for PDF (Base64)
+            reader.onload = function(evt) {
+                // Convert binary string to base64
+                const binary = evt.target.result;
+                customFontBase64 = btoa(binary);
+                customFontUploaded = true;
+                customFontName = "CustomUploadedFont";
+                
+                // 2. Load for Preview (FontFace API)
+                file.arrayBuffer().then(buffer => {
+                    const myFont = new FontFace('CustomPreviewFont', buffer);
+                    myFont.load().then(font => {
+                        document.fonts.add(font);
+                        updatePreview(); 
+                        alert("Font loaded successfully!");
+                    });
+                });
+            };
+            
+            reader.readAsBinaryString(file);
+        });
+
+
+        // --- 2. SCRAMBLE LOGIC ---
+        function shuffleString(str) {
+            let arr = str.split('');
+            for (let i = arr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [arr[i], arr[j]] = [arr[j], arr[i]];
+            }
+            return arr.join('');
+        }
+
+        function getScrambledWord(word, mode) {
+            word = word.toUpperCase().trim();
+            if (word.length < 4) return shuffleString(word);
+
+            if (mode === 'keepEnds') {
+                const first = word[0];
+                const last = word[word.length - 1];
+                const middle = word.slice(1, -1);
+                let shuffled = shuffleString(middle);
+                if (shuffled === middle && middle.length > 1) shuffled = shuffleString(middle); 
+                return first + shuffled + last;
+            } else {
+                let shuffled = shuffleString(word);
+                while(shuffled === word && word.length > 1) shuffled = shuffleString(word);
+                return shuffled;
+            }
+        }
+
+        // --- 3. PREVIEW ---
+        function updatePreview() {
+            const container = document.getElementById('previewArea');
+            const words = document.getElementById('wordList').value.split('\n').filter(w => w.trim() !== '');
+            const title = document.getElementById('puzzleTitle').value;
+            const mode = document.getElementById('scrambleMode').value;
+            const limit = parseInt(document.getElementById('wordsPerPage').value);
+
+            // If no custom font uploaded, uses Helvetica/Arial from CSS
+            const fontStyle = customFontUploaded ? "font-family: 'CustomPreviewFont', sans-serif;" : "";
+
+            let html = `<div class="page-title custom-font-target" style="${fontStyle}">${title} 1</div>`;
+            
+            words.slice(0, limit).forEach(word => {
+                const cleanWord = word.trim().toUpperCase();
+                const scrambled = getScrambledWord(cleanWord, mode);
+                
+                html += `<div class="anagram-row">`;
+                html += `<div class="scrambled-text">${scrambled}</div>`;
+                html += `<div class="boxes-container">`;
+                
+                for(let i=0; i<cleanWord.length; i++) {
+                    html += `<div class="letter-box" style="${fontStyle}"></div>`;
+                }
+                html += `</div></div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        // --- 4. PDF GENERATION ---
+        async function generatePDF() {
+            const btn = document.getElementById('btnPdf');
+            const originalText = btn.innerText;
+            btn.innerText = "Processing...";
+            await new Promise(r => setTimeout(r, 50));
+
+            // 6x9 Format
+            const doc = new jsPDF({
+                orientation: 'p',
+                unit: 'mm',
+                format: [152.4, 228.6] 
+            });
+
+            // ADD CUSTOM FONT IF UPLOADED
+            if (customFontUploaded && customFontBase64) {
+                doc.addFileToVFS("custom.ttf", customFontBase64);
+                doc.addFont("custom.ttf", "CustomUploadedFont", "normal");
+                doc.addFont("custom.ttf", "CustomUploadedFont", "bold"); 
+            }
+
+            const words = document.getElementById('wordList').value.split('\n').filter(w => w.trim() !== '');
+            const title = document.getElementById('puzzleTitle').value;
+            const mode = document.getElementById('scrambleMode').value;
+            const wordsPerPage = parseInt(document.getElementById('wordsPerPage').value);
+
+            // Data
+            const puzzleData = words.map(w => ({
+                original: w.trim().toUpperCase(),
+                scrambled: getScrambledWord(w.trim().toUpperCase(), mode)
+            }));
+
+            // Chunking
+            const pages = [];
+            for (let i = 0; i < puzzleData.length; i += wordsPerPage) {
+                pages.push(puzzleData.slice(i, i + wordsPerPage));
+            }
+
+            // Layout Config
+            const pageWidth = 152.4;
+            const pageHeight = 228.6;
+            const marginX = 12; 
+            const startY = 35;
+            const rowHeight = 13; 
+            const boxSize = 6; 
+            const contentWidth = pageWidth - (marginX * 2);
+            const textWidth = contentWidth * 0.35; 
+            const boxesStartX = marginX + textWidth + 5; 
+
+            const drawContent = (items, pageIndex, isSolution) => {
+                // Title
+                if(customFontUploaded) doc.setFont("CustomUploadedFont", "bold");
+                else doc.setFont("helvetica", "bold");
+                
+                doc.setFontSize(20);
+                doc.setTextColor(40);
+                
+                const titleText = isSolution 
+                    ? `${title} ${pageIndex + 1} - LÖSUNG` 
+                    : `${title} ${pageIndex + 1}`;
+                doc.text(titleText, pageWidth / 2, 22, { align: "center" });
+
+                // Rows
+                items.forEach((item, idx) => {
+                    const currentY = startY + (idx * rowHeight);
+
+                    // Scrambled Text (Always Courier)
+                    doc.setFont("courier", "bold");
+                    doc.setFontSize(12);
+                    doc.setTextColor(0);
+                    doc.text(item.scrambled, marginX + textWidth, currentY + (boxSize/2) + 1, { align: "right" });
+
+                    // Boxes
+                    doc.setDrawColor(0);
+                    doc.setLineWidth(0.3);
+
+                    for(let i=0; i<item.original.length; i++) {
+                        let bx = boxesStartX + (i * boxSize);
+                        let by = currentY;
+                        
+                        if (bx + boxSize < pageWidth - marginX) {
+                            // Draw Box
+                            doc.setFillColor(255, 255, 255);
+                            doc.rect(bx, by, boxSize, boxSize, 'FD'); 
+
+                            // Draw Solution Letter
+                            if(isSolution) {
+                                // Use Custom font if available, else Helvetica
+                                if(customFontUploaded) doc.setFont("CustomUploadedFont", "normal");
+                                else doc.setFont("helvetica", "bold");
+                                
+                                doc.setFontSize(11);
+                                doc.setTextColor(0);
+                                
+                                // Perfect Center
+                                doc.text(item.original[i], bx + boxSize/2, by + boxSize/2, { 
+                                    align: "center", 
+                                    baseline: "middle" 
+                                });
+                            }
+                        }
+                    }
+                });
+            };
+
+            // Loop: Puzzle -> Answer -> Puzzle -> Answer
+            for(let i=0; i<pages.length; i++) {
+                if (i > 0) doc.addPage();
+                drawContent(pages[i], i, false); // Puzzle
+                doc.addPage();
+                drawContent(pages[i], i, true);  // Solution
+            }
+
+            doc.save("Anagrams_6x9.pdf");
+            btn.innerText = originalText;
+        }
+
+        window.onload = updatePreview;
+    </script>
+</body>
+</html>

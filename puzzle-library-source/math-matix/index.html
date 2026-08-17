@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Math Puzzle Generator - Fixed Design</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --bg: #f4f4f9;
+            --page-w: 152.4mm; /* 6x9 inch */
+            --page-h: 228.6mm;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            color: #333;
+        }
+
+        h1 { color: var(--primary); margin-bottom: 10px; }
+
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            max-width: 900px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label { font-weight: bold; font-size: 0.9rem; }
+        
+        input, select {
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 6px;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            transition: 0.2s;
+            height: 42px;
+            align-self: flex-end;
+        }
+
+        .btn-gen { background-color: #3498db; }
+        .btn-gen:hover { background-color: #2980b9; }
+
+        .btn-pdf { background-color: #27ae60; }
+        .btn-pdf:hover { background-color: #219150; }
+
+        /* PREVIEW AREA */
+        .preview-container {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .sheet {
+            background: white;
+            width: var(--page-w);
+            height: var(--page-h);
+            box-shadow: 0 0 15px rgba(0,0,0,0.2);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        /* HTML Preview Styles (Approximate) */
+        .puzzle-html-preview {
+            border: 2px solid #ccc;
+            padding: 20px;
+            text-align: center;
+            color: #777;
+            font-style: italic;
+        }
+
+        @media (max-width: 900px) {
+            .sheet { zoom: 0.5; }
+        }
+    </style>
+</head>
+<body>
+
+    <h1>Puzzle & Solution Generator (Fixed Layout)</h1>
+
+    <div class="controls">
+        <div class="input-group">
+            <label>Pages (Puzzles)</label>
+            <input type="number" id="pageCount" value="10" min="1" max="100">
+        </div>
+
+        <div class="input-group">
+            <label>Difficulty</label>
+            <select id="difficulty">
+                <option value="easy">Easy (1-9, + -)</option>
+                <option value="medium" selected>Medium (1-20, + - x)</option>
+                <option value="hard">Hard (1-50, + - x /)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Taille Police (Font Size)</label>
+            <input type="number" id="fontSizeInput" value="24" min="10" max="60">
+        </div>
+
+        <div class="input-group">
+            <label>Book Size</label>
+            <select id="sizeSelect" onchange="updateSize()">
+                <option value="6x9" selected>6 x 9 inch</option>
+                <option value="8.5x11">8.5 x 11 inch</option>
+                <option value="a4">A4</option>
+            </select>
+        </div>
+
+        <button class="btn-gen" onclick="generatePreview()">Generate Preview</button>
+        <button class="btn-pdf" id="btnPdf" onclick="downloadPDF()">Download PDF</button>
+    </div>
+
+    <div id="status" style="margin-bottom:20px; color:#666;">Click Generate to start...</div>
+
+    <div class="preview-container" id="previewContainer"></div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+
+        const sizes = {
+            "6x9": { width: 152.4, height: 228.6 },
+            "8.5x11": { width: 215.9, height: 279.4 },
+            "a4": { width: 210, height: 297 }
+        };
+
+        let generatedData = [];
+
+        function updateSize() {
+            const sizeKey = document.getElementById('sizeSelect').value;
+            const dims = sizes[sizeKey];
+            document.documentElement.style.setProperty('--page-w', dims.width + 'mm');
+            document.documentElement.style.setProperty('--page-h', dims.height + 'mm');
+        }
+
+        function getRandomInt(min, max) {
+            return Math.floor(Math.random() * (max - min + 1)) + min;
+        }
+
+        function getOperator(level) {
+            const ops = ['+', '-'];
+            if (level !== 'easy') ops.push('x');
+            if (level === 'hard') ops.push('÷');
+            return ops[Math.floor(Math.random() * ops.length)];
+        }
+
+        function generateSinglePuzzle(level) {
+            let maxNum = 9;
+            if (level === 'medium') maxNum = 20;
+            if (level === 'hard') maxNum = 50;
+
+            let valid = false;
+            let numbers, hOps, vOps, rowRes, colRes;
+
+            while (!valid) {
+                numbers = [];
+                for(let i=0; i<9; i++) numbers.push(getRandomInt(1, maxNum));
+
+                hOps = []; vOps = [];
+                for(let i=0; i<6; i++) hOps.push(getOperator(level));
+                for(let i=0; i<6; i++) vOps.push(getOperator(level));
+
+                rowRes = [];
+                let rowValid = true;
+                for(let r=0; r<3; r++) {
+                    let n1 = numbers[r*3];
+                    let n2 = numbers[r*3+1];
+                    let n3 = numbers[r*3+2];
+                    let op1 = hOps[r*2];
+                    let op2 = hOps[r*2+1];
+                    let jsOp1 = op1 === 'x' ? '*' : (op1 === '÷' ? '/' : op1);
+                    let jsOp2 = op2 === 'x' ? '*' : (op2 === '÷' ? '/' : op2);
+                    let res = eval(`${n1} ${jsOp1} ${n2} ${jsOp2} ${n3}`);
+                    if (!Number.isInteger(res) || res < -50 || res > 200) { rowValid = false; break; }
+                    rowRes.push(res);
+                }
+                if(!rowValid) continue;
+
+                colRes = [];
+                let colValid = true;
+                for(let c=0; c<3; c++) {
+                    let n1 = numbers[c];
+                    let n2 = numbers[c+3];
+                    let n3 = numbers[c+6];
+                    let op1 = vOps[c];
+                    let op2 = vOps[c+3];
+                    let jsOp1 = op1 === 'x' ? '*' : (op1 === '÷' ? '/' : op1);
+                    let jsOp2 = op2 === 'x' ? '*' : (op2 === '÷' ? '/' : op2);
+                    let res = eval(`${n1} ${jsOp1} ${n2} ${jsOp2} ${n3}`);
+                    if (!Number.isInteger(res) || res < -50 || res > 200) { colValid = false; break; }
+                    colRes.push(res);
+                }
+                if(colValid) valid = true;
+            }
+            return { numbers, hOps, vOps, rowRes, colRes };
+        }
+
+        function generatePreview() {
+            const pageCount = parseInt(document.getElementById('pageCount').value);
+            const level = document.getElementById('difficulty').value;
+            const container = document.getElementById('previewContainer');
+            
+            generatedData = [];
+            container.innerHTML = '';
+            updateSize();
+
+            const status = document.getElementById('status');
+            status.textContent = `Generating...`;
+
+            for(let i=0; i<pageCount; i++) {
+                generatedData.push(generateSinglePuzzle(level));
+            }
+
+            // Preview UI (Simplifiée car le PDF est le plus important)
+            const sheet = document.createElement('div');
+            sheet.className = 'sheet';
+            const msg = document.createElement('div');
+            msg.className = 'puzzle-html-preview';
+            msg.innerHTML = "<h3>Preview Mode</h3><p>The layout in the browser is approximate.<br>Click <b>Download PDF</b> to see the clean layout with correct font size.</p>";
+            sheet.appendChild(msg);
+            container.appendChild(sheet);
+
+            status.textContent = `Generated ${pageCount} puzzles. Ready to Download PDF.`;
+        }
+
+        async function downloadPDF() {
+            const btn = document.getElementById('btnPdf');
+            btn.textContent = "Processing...";
+            
+            const sizeKey = document.getElementById('sizeSelect').value;
+            const userFontSize = parseInt(document.getElementById('fontSizeInput').value) || 24;
+            const dims = sizes[sizeKey];
+            const doc = new jsPDF({ unit: 'mm', format: [dims.width, dims.height] });
+
+            const margin = 20; 
+            const availableW = dims.width - (margin * 2);
+            
+            // Grid calculations
+            // Grid is 5x5. Results are separate.
+            // We want the main grid to be large.
+            // Let's say grid takes 70% of width.
+            const cellSize = (availableW * 0.75) / 5; 
+            const gap = cellSize * 0.8; // Space between grid and results
+            
+            const totalWidth = (cellSize * 5) + gap + cellSize; // Grid + Gap + ResultBox
+            const startX = (dims.width - totalWidth) / 2;
+            const startY = (dims.height - totalWidth) / 2; // Keep it square
+
+            for(let i=0; i<generatedData.length; i++) {
+                
+                // PAGE 1: PUZZLE
+                if (i > 0) doc.addPage(); 
+                drawPuzzleOnPDF(doc, generatedData[i], startX, startY, cellSize, gap, userFontSize, false);
+
+                // PAGE 2: SOLUTION
+                doc.addPage();
+                drawPuzzleOnPDF(doc, generatedData[i], startX, startY, cellSize, gap, userFontSize, true);
+            }
+
+            doc.save(`Math_Puzzles_Clean_${sizeKey}.pdf`);
+            btn.textContent = "Download PDF";
+        }
+
+        function drawPuzzleOnPDF(doc, data, x, y, size, gap, fontSize, isSolution) {
+            // Set styles
+            doc.setLineWidth(0.7); // THICKER BORDER (0.7mm)
+            doc.setDrawColor(0); // Black
+
+            // 1. Draw Main 5x5 Grid
+            for(let r=0; r<5; r++) {
+                for(let c=0; c<5; c++) {
+                    let cx = x + (c * size);
+                    let cy = y + (r * size);
+
+                    if (r % 2 !== 0 && c % 2 !== 0) {
+                        // Black Cell
+                        doc.setFillColor(0);
+                        doc.rect(cx, cy, size, size, 'F');
+                    } else {
+                        // White Cell with Thick Border
+                        doc.setFillColor(255);
+                        doc.rect(cx, cy, size, size, 'S'); // 'S' stroke only (transparent inside) or 'FD'
+                    }
+
+                    // Content
+                    doc.setFontSize(fontSize);
+                    doc.setFont("helvetica", "bold");
+                    doc.setTextColor(0);
+                    
+                    // Adjust Text position vertically (approx middle)
+                    let tx = cx + size/2;
+                    let ty = cy + size/2 + (fontSize * 0.35 * 0.3527); // rough centering for PDF baseline
+
+                    if (r % 2 === 0 && c % 2 === 0) {
+                        // Numbers (Only in Solution)
+                        if (isSolution) {
+                            let val = data.numbers[(r/2)*3 + (c/2)];
+                            doc.text(String(val), tx, ty, { align: 'center' });
+                        }
+                    }
+                    else if (r % 2 === 0) {
+                        // Horizontal Ops
+                        let val = data.hOps[(r/2)*2 + (c-1)/2];
+                        doc.text(String(val), tx, ty, { align: 'center' });
+                    }
+                    else if (c % 2 === 0) {
+                        // Vertical Ops
+                        let val = data.vOps[(c/2) + ((r-1)/2 * 3)];
+                        doc.text(String(val), tx, ty, { align: 'center' });
+                    }
+                }
+            }
+
+            // 2. Draw Results (Detached Boxes)
+            doc.setFontSize(fontSize);
+            doc.setLineWidth(0.7); 
+
+            // Row Results (Right side)
+            for(let r=0; r<3; r++) {
+                let val = data.rowRes[r];
+                let rowIndex = r * 2; // 0, 2, 4
+                
+                let cy = y + (rowIndex * size);
+                
+                // Draw "=" sign perfectly in the gap
+                let equalsX = x + (5 * size) + (gap/2);
+                let equalsY = cy + size/2 + (fontSize * 0.35 * 0.3527);
+                doc.text("=", equalsX, equalsY, { align: 'center' });
+                
+                // Draw Box
+                let boxX = x + (5 * size) + gap;
+                doc.rect(boxX, cy, size, size, 'S');
+                
+                // Draw Number
+                doc.text(String(val), boxX + size/2, equalsY, { align: 'center' });
+            }
+
+            // Col Results (Bottom side)
+            for(let c=0; c<3; c++) {
+                let val = data.colRes[c];
+                let colIndex = c * 2; // 0, 2, 4
+
+                let cx = x + (colIndex * size);
+
+                // Draw "=" sign in the gap
+                let equalsX = cx + size/2;
+                let equalsY = y + (5 * size) + (gap/2) + (fontSize * 0.35 * 0.3527);
+                doc.text("=", equalsX, equalsY, { align: 'center' });
+
+                // Draw Box
+                let boxY = y + (5 * size) + gap;
+                doc.rect(cx, boxY, size, size, 'S');
+
+                // Draw Number
+                let textY = boxY + size/2 + (fontSize * 0.35 * 0.3527);
+                doc.text(String(val), cx + size/2, textY, { align: 'center' });
+            }
+        }
+
+        window.onload = function() {
+            updateSize();
+        }
+    </script>
+</body>
+</html>

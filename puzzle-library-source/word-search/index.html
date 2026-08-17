@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Word Search - 6x9 Default</title>
+    <!-- jsPDF Library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --primary-color: #333;
+            --secondary-color: #555;
+            --light-gray: #f4f6f9;
+            --border-color: #ccc;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--light-gray);
+            padding: 20px;
+            color: #333;
+        }
+        .generator-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 30px;
+            max-width: 1200px;
+            margin: auto;
+            background-color: #fff;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        .controls-column, .preview-column {
+            flex: 1;
+            min-width: 400px;
+        }
+        fieldset {
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        legend {
+            font-weight: 700;
+            padding: 0 8px;
+            color: var(--secondary-color);
+            text-transform: uppercase;
+            font-size: 0.9em;
+        }
+        textarea {
+            width: 100%;
+            height: 120px;
+            font-family: monospace;
+            padding: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            resize: vertical;
+        }
+        .layout-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            flex: 1;
+        }
+        .control-group label {
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        input, select {
+            padding: 8px;
+            border: 1px solid var(--border-color);
+            border-radius: 4px;
+        }
+        
+        .placement-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+        .placement-option { display: flex; align-items: center; gap: 5px; font-size: 0.9em; }
+
+        .action-button {
+            width: 100%;
+            padding: 15px;
+            font-size: 1.1em;
+            font-weight: bold;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        #generate-button { background-color: #27ae60; }
+        #export-pdf-button { background-color: #c0392b; }
+        #export-pdf-button:disabled { background-color: #95a5a6; cursor: not-allowed; }
+
+        .preview-box {
+            border: 1px solid #ccc;
+            padding: 20px;
+            background-color: #fff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 500px;
+            border-radius: 8px;
+            overflow: auto;
+        }
+        #preview-grid table { border-collapse: collapse; }
+        #preview-grid td {
+            width: 28px; height: 28px;
+            text-align: center; vertical-align: middle;
+            border: 1px solid #eee; 
+            font-weight: bold; font-size: 18px;
+        }
+        #preview-grid td.solution {
+            color: red;
+            background-color: rgba(255, 0, 0, 0.1);
+            border-color: red;
+        }
+        
+        .preview-nav { display: flex; justify-content: center; gap: 15px; margin-top: 15px; }
+        button.nav-btn { padding: 5px 15px; cursor: pointer; }
+        
+        #status { text-align: center; margin-top: 15px; font-weight: 600; min-height: 20px; }
+    </style>
+</head>
+<body>
+
+<div class="generator-container">
+    <!-- LEFT: SETTINGS -->
+    <div class="controls-column">
+        <fieldset>
+            <legend>1. Mots & Données</legend>
+            <textarea id="words-list" placeholder="Entrez les mots séparés par des virgules..."></textarea>
+        </fieldset>
+
+        <fieldset>
+            <legend>2. Configuration PDF</legend>
+            <div class="layout-controls">
+                <!-- NEW: Page Size Option -->
+                <div class="control-group">
+                    <label>Format Page:</label>
+                    <select id="page-size-select">
+                        <option value="6x9" selected>6 x 9 pouces (Poche)</option>
+                        <option value="8.5x11">8.5 x 11 (Letter)</option>
+                        <option value="a4">A4 (Standard)</option>
+                    </select>
+                </div>
+                <div class="control-group">
+                    <label>Nombre de Pages:</label>
+                    <input type="number" id="total-pages" value="10" min="1">
+                </div>
+                <div class="control-group">
+                    <label>Police PDF:</label>
+                    <select id="pdf-font-select">
+                        <option value="helvetica">Helvetica</option>
+                        <option value="times">Times New Roman</option>
+                        <option value="courier">Courier</option>
+                    </select>
+                </div>
+            </div>
+            <div class="layout-controls" style="margin-top: 10px;">
+                <div class="control-group">
+                    <label>Taille Grille (pt):</label>
+                    <input type="number" id="pdf-grid-font-scale" value="70" min="10" max="150">
+                </div>
+                <div class="control-group">
+                    <label>Taille Liste (pt):</label>
+                    <input type="number" id="pdf-list-font-size" value="12" min="6" max="36">
+                </div>
+            </div>
+        </fieldset>
+
+        <fieldset>
+            <legend>3. Grille</legend>
+            <div class="layout-controls">
+                <div class="control-group">
+                    <label>Largeur X:</label>
+                    <input type="number" id="grid-width" value="15">
+                </div>
+                <div class="control-group">
+                    <label>Hauteur Y:</label>
+                    <input type="number" id="grid-height" value="15">
+                </div>
+                <div class="control-group">
+                    <label>Mots/Page:</label>
+                    <input type="number" id="words-per-page" value="15">
+                </div>
+            </div>
+        </fieldset>
+        
+        <fieldset>
+            <legend>Directions</legend>
+            <div class="placement-grid">
+                <div class="placement-option"><input type="checkbox" id="dir-0" checked>&rarr; E</div>
+                <div class="placement-option"><input type="checkbox" id="dir-1" checked>&darr; S</div>
+                <div class="placement-option"><input type="checkbox" id="dir-2" checked>&uarr; N</div>
+                <div class="placement-option"><input type="checkbox" id="dir-3" checked>&#8600; SE</div>
+                <div class="placement-option"><input type="checkbox" id="dir-4" checked>&#8599; NE</div>
+                <div class="placement-option"><input type="checkbox" id="dir-5" checked>&larr; W</div>
+                <div class="placement-option"><input type="checkbox" id="dir-6" checked>&#8601; SW</div>
+                <div class="placement-option"><input type="checkbox" id="dir-7" checked>&#8598; NW</div>
+            </div>
+        </fieldset>
+
+        <button id="generate-button" class="action-button">GÉNÉRER PUZZLES</button>
+        <button id="export-pdf-button" class="action-button" disabled>TÉLÉCHARGER PDF</button>
+        <div id="status"></div>
+    </div>
+
+    <!-- RIGHT: PREVIEW -->
+    <div class="preview-column">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h3>Aperçu</h3>
+            <div>
+                <input type="checkbox" id="show-solution">
+                <label for="show-solution">Voir Solution</label>
+            </div>
+        </div>
+        <div class="preview-box">
+            <div id="preview-grid">Cliquez sur Générer...</div>
+        </div>
+        <div class="preview-nav">
+            <button class="nav-btn" id="prev-page-btn" disabled>&laquo;</button>
+            <span id="page-info">0 / 0</span>
+            <button class="nav-btn" id="next-page-btn" disabled>&raquo;</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- STATE ---
+    let puzzles = [];
+    let currentPageIndex = 0;
+
+    // --- ELEMENTS ---
+    const generateBtn = document.getElementById('generate-button');
+    const exportPdfBtn = document.getElementById('export-pdf-button');
+    const statusEl = document.getElementById('status');
+    const showSolutionCheck = document.getElementById('show-solution');
+    const previewGrid = document.getElementById('preview-grid');
+    const pageInfoEl = document.getElementById('page-info');
+
+    // --- INIT ---
+    window.onload = function() {
+        document.getElementById('words-list').value = "PYTHON,JAVASCRIPT,HTML,CSS,REACT,ANGULAR,VUE,NODE,JAVA,KOTLIN,SWIFT,FLUTTER,DOCKER,LINUX,SERVER,CLOUD,DATA,ALGO,LOGIC,CODE";
+    };
+
+    // --- EVENTS ---
+    generateBtn.addEventListener('click', generateAllPuzzles);
+    exportPdfBtn.addEventListener('click', exportToPDF);
+    showSolutionCheck.addEventListener('change', renderCurrentPage);
+    document.getElementById('prev-page-btn').addEventListener('click', () => { currentPageIndex--; renderCurrentPage(); });
+    document.getElementById('next-page-btn').addEventListener('click', () => { currentPageIndex++; renderCurrentPage(); });
+
+    // --- GENERATION LOGIC ---
+    function generateAllPuzzles() {
+        statusEl.textContent = 'Génération en cours...';
+        puzzles = [];
+        
+        try {
+            const wordsRaw = document.getElementById('words-list').value;
+            const allWords = wordsRaw.split(/[\s\n,;]+/).filter(w => w.length > 0)
+                .map(w => w.toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""));
+
+            const totalPages = parseInt(document.getElementById('total-pages').value) || 10;
+            const wordsPerPage = parseInt(document.getElementById('words-per-page').value) || 15;
+            const width = parseInt(document.getElementById('grid-width').value);
+            const height = parseInt(document.getElementById('grid-height').value);
+            const activeDirs = getActiveDirections();
+
+            if (allWords.length === 0 || activeDirs.length === 0) throw new Error("Vérifiez les mots et directions.");
+
+            for(let i = 0; i < totalPages; i++) {
+                const shuffled = [...allWords].sort(() => 0.5 - Math.random());
+                const pageWords = shuffled.slice(0, wordsPerPage);
+                puzzles.push(createPuzzle(pageWords, width, height, activeDirs));
+            }
+            
+            currentPageIndex = 0;
+            renderCurrentPage();
+            exportPdfBtn.disabled = false;
+            statusEl.textContent = `${puzzles.length} pages générées avec succès.`;
+
+        } catch (e) {
+            statusEl.textContent = "Erreur: " + e.message;
+        }
+    }
+
+    function createPuzzle(wordList, width, height, dirs) {
+        let grid = Array(height).fill(null).map(() => Array(width).fill(null));
+        let solution = Array(height).fill(false).map(() => Array(width).fill(false));
+        let placed = [];
+        
+        const toPlace = wordList.map(w => ({ original: w, clean: w.replace(/[^A-Z]/g, '') }))
+                                .sort((a,b) => b.clean.length - a.clean.length);
+
+        for(let wObj of toPlace) {
+            let fitted = false, tries = 0;
+            while(!fitted && tries < 200) {
+                const dir = dirs[Math.floor(Math.random() * dirs.length)];
+                const r = Math.floor(Math.random() * height);
+                const c = Math.floor(Math.random() * width);
+                
+                if(canPlace(grid, wObj.clean, r, c, dir)) {
+                    place(grid, solution, wObj.clean, r, c, dir);
+                    placed.push({ r, c, dir, len: wObj.clean.length, word: wObj.original });
+                    fitted = true;
+                }
+                tries++;
+            }
+        }
+
+        const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        for(let r=0; r<height; r++) {
+            for(let c=0; c<width; c++) {
+                if(grid[r][c] === null) grid[r][c] = chars[Math.floor(Math.random() * chars.length)];
+            }
+        }
+        return { grid, solution, placedWords: placed };
+    }
+
+    function canPlace(grid, word, r, c, d) {
+        for(let i=0; i<word.length; i++) {
+            let nr = r + i*d.r, nc = c + i*d.c;
+            if(nr < 0 || nr >= grid.length || nc < 0 || nc >= grid[0].length) return false;
+            if(grid[nr][nc] !== null && grid[nr][nc] !== word[i]) return false;
+        }
+        return true;
+    }
+
+    function place(grid, sol, word, r, c, d) {
+        for(let i=0; i<word.length; i++) {
+            let nr = r + i*d.r, nc = c + i*d.c;
+            grid[nr][nc] = word[i];
+            sol[nr][nc] = true;
+        }
+    }
+
+    function getActiveDirections() {
+        const d = [{r:0,c:1},{r:1,c:0},{r:-1,c:0},{r:1,c:1},{r:-1,c:1},{r:0,c:-1},{r:1,c:-1},{r:-1,c:-1}];
+        let active = [];
+        for(let i=0; i<8; i++) if(document.getElementById(`dir-${i}`).checked) active.push(d[i]);
+        return active;
+    }
+
+    // --- PDF ---
+    async function exportToPDF() {
+        const { jsPDF } = window.jspdf;
+        
+        // 1. DETERMINE PAGE SIZE
+        const sizeSelect = document.getElementById('page-size-select').value;
+        let format;
+        if(sizeSelect === '6x9') format = [152.4, 228.6]; // 6x9 inches in mm
+        else if(sizeSelect === '8.5x11') format = [215.9, 279.4]; // Letter
+        else format = 'a4'; // A4
+
+        const doc = new jsPDF({ unit: 'mm', format: format });
+
+        const fontName = document.getElementById('pdf-font-select').value;
+        const fontScale = parseInt(document.getElementById('pdf-grid-font-scale').value) || 70;
+        const listSize = parseInt(document.getElementById('pdf-list-font-size').value) || 12;
+
+        for(let i=0; i<puzzles.length; i++) {
+            if(i > 0) doc.addPage(format); // Use selected format for new pages
+            // Puzzle
+            drawPage(doc, puzzles[i], false, fontName, fontScale, listSize);
+            
+            doc.addPage(format);
+            // Solution
+            drawPage(doc, puzzles[i], true, fontName, fontScale, listSize);
+        }
+        doc.save(`WordSearch_${sizeSelect}.pdf`);
+    }
+
+    function drawPage(doc, p, isSol, fontName, scale, listSize) {
+        // Page width detection
+        const pageWidth = doc.internal.pageSize.getWidth();
+        const margin = 15;
+        const availW = pageWidth - margin*2;
+        
+        const cellSize = availW / p.grid[0].length;
+        const startY = margin + 10;
+        const fontSize = cellSize * (scale/100);
+
+        doc.setTextColor(0, 0, 0); 
+        doc.setDrawColor(0, 0, 0);
+        doc.setFont(fontName, "normal");
+
+        // 1. Draw Grid
+        doc.setFontSize(fontSize);
+        doc.setLineWidth(0.2);
+
+        for(let r=0; r<p.grid.length; r++) {
+            for(let c=0; c<p.grid[0].length; c++) {
+                let x = margin + c*cellSize;
+                let y = startY + r*cellSize;
+                
+                doc.setDrawColor(0); // Black grid
+                doc.rect(x, y, cellSize, cellSize);
+                doc.text(p.grid[r][c], x+cellSize/2, y+cellSize/1.4, {align:'center'});
+            }
+        }
+
+        // 2. Draw Solution (RED CAPSULES)
+        if(isSol) {
+            drawRedCapsules(doc, p.placedWords, margin, startY, cellSize);
+        }
+
+        // 3. Draw Words List
+        doc.setFontSize(listSize);
+        doc.setTextColor(0, 0, 0); 
+        
+        const listY = startY + p.grid.length*cellSize + 15;
+        const words = p.placedWords.map(o => o.word).sort();
+        
+        const cols = 3; 
+        const colW = availW / cols;
+        const lineHeight = listSize * 0.5;
+
+        words.forEach((w, idx) => {
+            let c = idx % cols;
+            let r = Math.floor(idx / cols);
+            // Centered in column
+            let xPos = margin + (c * colW) + (colW / 2);
+            let yPos = listY + r * (lineHeight + 2);
+            doc.text(w, xPos, yPos, { align: 'center' });
+        });
+    }
+
+    function drawRedCapsules(doc, placedWords, margin, startY, cellSize) {
+        doc.setDrawColor(255, 0, 0); // RED
+        doc.setLineWidth(0.6); 
+
+        const r = (cellSize * 0.8) / 2; 
+        const padding = cellSize / 2;
+
+        placedWords.forEach(pw => {
+            const x1 = margin + pw.c * cellSize + padding;
+            const y1 = startY + pw.r * cellSize + padding;
+            const x2 = margin + (pw.c + (pw.len - 1) * pw.dir.c) * cellSize + padding;
+            const y2 = startY + (pw.r + (pw.len - 1) * pw.dir.r) * cellSize + padding;
+
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const angle = Math.atan2(dy, dx);
+            
+            const ux = Math.sin(angle) * r;
+            const uy = Math.cos(angle) * r;
+
+            const p1x = x1 - ux, p1y = y1 + uy;
+            const p2x = x2 - ux, p2y = y2 + uy;
+            const p3x = x2 + ux, p3y = y2 - uy;
+            const p4x = x1 + ux, p4y = y1 - uy;
+
+            const k = 0.55228 * r;
+            const kx = Math.cos(angle) * k;
+            const ky = Math.sin(angle) * k;
+
+            doc.moveTo(p1x, p1y);
+            doc.lineTo(p2x, p2y);
+            doc.curveTo(p2x + kx, p2y + ky, p3x + kx, p3y + ky, p3x, p3y);
+            doc.lineTo(p4x, p4y);
+            doc.curveTo(p4x - kx, p4y - ky, p1x - kx, p1y - ky, p1x, p1y);
+            doc.stroke();
+        });
+    }
+
+    // --- PREVIEW ---
+    function renderCurrentPage() {
+        if(!puzzles.length) return;
+        const p = puzzles[currentPageIndex];
+        const showSol = showSolutionCheck.checked;
+        
+        let h = '<table style="margin:auto;">';
+        for(let r=0; r<p.grid.length; r++) {
+            h += '<tr>';
+            for(let c=0; c<p.grid[0].length; c++) {
+                let style = '';
+                if(showSol && p.solution[r][c]) style = 'color:red; font-weight:bold; border: 2px solid red; border-radius: 50%;'; 
+                h += `<td style="${style}">${p.grid[r][c]}</td>`;
+            }
+            h += '</tr>';
+        }
+        h += '</table>';
+        previewGrid.innerHTML = h;
+        
+        document.getElementById('page-info').textContent = `${currentPageIndex+1} / ${puzzles.length}`;
+        document.getElementById('prev-page-btn').disabled = (currentPageIndex === 0);
+        document.getElementById('next-page-btn').disabled = (currentPageIndex === puzzles.length-1);
+    }
+</script>
+
+</body>
+</html>

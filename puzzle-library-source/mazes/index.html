@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KDP Maze Generator - Vector 6x9</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #eef2f3; padding: 20px; display: flex; flex-direction: column; align-items: center; color: #333; }
+        .box { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 600px; }
+        h1 { margin-top: 0; color: #2c3e50; text-align: center; }
+        .row { display: flex; gap: 15px; margin-bottom: 15px; }
+        .col { flex: 1; }
+        label { font-weight: 600; font-size: 0.9em; display: block; margin-bottom: 5px; }
+        select, input { width: 100%; padding: 12px; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; }
+        button { background: #3498db; color: white; border: none; padding: 15px; width: 100%; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #2980b9; }
+        button:disabled { background: #95a5a6; cursor: wait; }
+        #status { margin-top: 15px; text-align: center; font-weight: bold; min-height: 20px; color: #27ae60; }
+        .info { font-size: 0.85em; color: #7f8c8d; text-align: center; margin-top: 10px; }
+    </style>
+</head>
+<body>
+
+<div class="box">
+    <h1>🧩 Vector Maze Generator 6x9</h1>
+    
+    <div class="row">
+        <div class="col">
+            <label>Number of Mazes</label>
+            <input type="number" id="mazeCount" value="10" min="1" max="100">
+        </div>
+        <div class="col">
+            <label>Grid Size (Difficulty)</label>
+            <select id="difficulty">
+                <option value="15">Easy (15x15)</option>
+                <option value="25" selected>Medium (25x25)</option>
+                <option value="35">Hard (35x35)</option>
+                <option value="50">Insane (50x50)</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col">
+            <label>Maze Shape</label>
+            <select id="shapeType">
+                <option value="random">🎲 Random Mix (All 10)</option>
+                <option value="square">Square</option>
+                <option value="circle">Circle</option>
+                <option value="diamond">Diamond</option>
+                <option value="heart">Heart</option>
+                <option value="star">Star</option>
+                <option value="triangle">Triangle</option>
+                <option value="hourglass">Hourglass</option>
+                <option value="donut">Donut (Ring)</option>
+                <option value="cross">Cross / Plus</option>
+                <option value="pacman">Pacman</option>
+            </select>
+        </div>
+    </div>
+
+    <button id="btnGen" onclick="generatePDF()">DOWNLOAD PDF (6x9)</button>
+    <div id="status">Ready</div>
+    <div class="info">Generates high-quality VECTOR PDF (Editable).<br>Layout: Puzzle Page → Solution Page.</div>
+</div>
+
+<script>
+    async function generatePDF() {
+        const { jsPDF } = window.jspdf;
+        const btn = document.getElementById('btnGen');
+        const status = document.getElementById('status');
+        
+        btn.disabled = true;
+        status.innerText = "Initializing generator...";
+
+        // Wait a frame to update UI
+        await new Promise(r => setTimeout(r, 50));
+
+        try {
+            const count = parseInt(document.getElementById('mazeCount').value);
+            const size = parseInt(document.getElementById('difficulty').value);
+            const selectedShape = document.getElementById('shapeType').value;
+
+            // 6x9 inches in mm
+            // 6 inch = 152.4 mm
+            // 9 inch = 228.6 mm
+            const pdfConfig = {
+                orientation: 'p',
+                unit: 'mm',
+                format: [152.4, 228.6] 
+            };
+            const doc = new jsPDF(pdfConfig);
+
+            const SHAPES = ['square', 'circle', 'diamond', 'heart', 'star', 'triangle', 'hourglass', 'donut', 'cross', 'pacman'];
+
+            for (let i = 0; i < count; i++) {
+                status.innerText = `Generating Maze ${i+1}/${count}...`;
+                await new Promise(r => setTimeout(r, 0));
+
+                let shape = selectedShape === 'random' ? SHAPES[i % SHAPES.length] : selectedShape;
+                let maze = new Maze(size, size, shape);
+                maze.generate();
+                maze.solve();
+
+                // ------------------------------------------
+                // PAGE 1: PUZZLE
+                // ------------------------------------------
+                if (i > 0) doc.addPage();
+                
+                // Title
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(16);
+                doc.text(`Maze #${i + 1}`, 152.4/2, 20, { align: 'center' });
+                
+                doc.setFontSize(10);
+                doc.setFont("helvetica", "normal");
+                doc.text(`Shape: ${shape.toUpperCase()}`, 152.4/2, 26, { align: 'center' });
+
+                // Draw Maze Vector (No Solution)
+                drawVectorMaze(doc, maze, false);
+                
+                // Footer
+                doc.setFontSize(9);
+                doc.text("Page " + ((i*2)+1), 152.4/2, 215, { align: 'center' });
+
+                // ------------------------------------------
+                // PAGE 2: SOLUTION
+                // ------------------------------------------
+                doc.addPage();
+                
+                doc.setFont("helvetica", "bold");
+                doc.setFontSize(16);
+                doc.text(`Solution #${i + 1}`, 152.4/2, 20, { align: 'center' });
+
+                // Draw Maze Vector (With Solution)
+                drawVectorMaze(doc, maze, true);
+
+                // Footer
+                doc.setFontSize(9);
+                doc.text("Page " + ((i*2)+2), 152.4/2, 215, { align: 'center' });
+            }
+
+            status.innerText = "Saving PDF...";
+            doc.save('Vector_Mazes_6x9.pdf');
+            status.innerText = "✅ Done! Check your downloads.";
+
+        } catch (err) {
+            console.error(err);
+            alert("Error: " + err.message);
+            status.innerText = "Error occurred.";
+        } finally {
+            btn.disabled = false;
+        }
+    }
+
+    /**
+     * Draws the maze using native PDF vector commands (Lines/Rects)
+     * This makes it crisp and editable.
+     */
+    function drawVectorMaze(doc, maze, showSolution) {
+        const pageWidth = 152.4;
+        const pageHeight = 228.6;
+        const margin = 15; // mm
+        
+        // Calculate max available area
+        const maxWidth = pageWidth - (margin * 2);
+        const maxHeight = pageHeight - 60; // Leave space for header/footer
+
+        // Calculate Cell Size to fit in the box
+        // We assume cells are square
+        let cellSize = Math.min(maxWidth / maze.cols, maxHeight / maze.rows);
+
+        // Center the maze
+        let totalW = maze.cols * cellSize;
+        let totalH = maze.rows * cellSize;
+        let startX = (pageWidth - totalW) / 2;
+        let startY = 40; // Top margin for drawing
+
+        // 1. Draw Solution Path (Background layer, looks better underneath walls)
+        if (showSolution && maze.path.length > 0) {
+            doc.setDrawColor(150, 150, 150); // Grey path
+            doc.setLineWidth(cellSize * 0.4);
+            doc.setLineCap("round");
+            doc.setLineJoin("round");
+
+            // Construct path as lines
+            for (let k = 0; k < maze.path.length - 1; k++) {
+                let curr = maze.path[k];
+                let next = maze.path[k+1];
+                let x1 = startX + (curr.c * cellSize) + (cellSize/2);
+                let y1 = startY + (curr.r * cellSize) + (cellSize/2);
+                let x2 = startX + (next.c * cellSize) + (cellSize/2);
+                let y2 = startY + (next.r * cellSize) + (cellSize/2);
+                doc.line(x1, y1, x2, y2);
+            }
+        }
+
+        // 2. Draw Walls
+        doc.setDrawColor(0, 0, 0); // Black walls
+        doc.setLineWidth(0.3); // Thin vector line
+        doc.setLineCap("square");
+
+        for (let cell of maze.grid) {
+            if (!cell.active) continue;
+
+            let x = startX + (cell.c * cellSize);
+            let y = startY + (cell.r * cellSize);
+
+            // Optimization: Only draw walls that exist
+            // Top
+            if (cell.walls[0]) doc.line(x, y, x + cellSize, y);
+            // Right
+            if (cell.walls[1]) doc.line(x + cellSize, y, x + cellSize, y + cellSize);
+            // Bottom
+            if (cell.walls[2]) doc.line(x + cellSize, y + cellSize, x, y + cellSize);
+            // Left
+            if (cell.walls[3]) doc.line(x, y + cellSize, x, y);
+        }
+
+        // 3. Draw Start (S) and End (E) Markers
+        if (maze.start && maze.end) {
+            drawMarker(doc, maze.start, startX, startY, cellSize, 'S', [0, 200, 0]); // Green
+            drawMarker(doc, maze.end, startX, startY, cellSize, 'E', [200, 0, 0]); // Red
+        }
+    }
+
+    function drawMarker(doc, cell, originX, originY, size, text, color) {
+        let cx = originX + (cell.c * size) + (size/2);
+        let cy = originY + (cell.r * size) + (size/2);
+        let r = size * 0.35;
+
+        // Fill Circle
+        doc.setFillColor(color[0], color[1], color[2]);
+        doc.circle(cx, cy, r, 'F');
+        
+        // Border
+        doc.setDrawColor(0);
+        doc.setLineWidth(0.1);
+        doc.circle(cx, cy, r, 'S');
+
+        // Text
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(size * 1.5); // Approximate conversion
+        doc.setFont("helvetica", "bold");
+        // Centering text in PDF is tricky without width calc, roughly:
+        doc.text(text, cx, cy + (r*0.4), { align: 'center' });
+    }
+
+
+    // ---------------------------------------------------------
+    // MAZE LOGIC & SHAPES
+    // ---------------------------------------------------------
+
+    class Maze {
+        constructor(cols, rows, shape) {
+            this.cols = cols;
+            this.rows = rows;
+            this.grid = [];
+            this.start = null;
+            this.end = null;
+            this.path = [];
+            
+            // Build Grid
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    let cell = new Cell(c, r);
+                    cell.active = this.checkShape(c, r, shape);
+                    this.grid.push(cell);
+                }
+            }
+        }
+
+        // Returns true if cell is inside the shape
+        checkShape(c, r, shape) {
+            // Normalized coordinates (-1 to 1)
+            let nx = (c / (this.cols - 1)) * 2 - 1;
+            let ny = (r / (this.rows - 1)) * 2 - 1;
+
+            switch(shape) {
+                case 'square': 
+                    return true;
+                
+                case 'circle': 
+                    return (nx*nx + ny*ny <= 1.0);
+                
+                case 'diamond': 
+                    return (Math.abs(nx) + Math.abs(ny) <= 1.0);
+                
+                case 'heart': 
+                    // Flip Y for heart formula
+                    let hy = -ny; 
+                    let hx = nx;
+                    // Formula: x^2 + (y - (x^2)^(1/3))^2 <= 1
+                    let part = Math.pow(hx*hx, 1/3); 
+                    // Approx for grid
+                    return (hx*hx + Math.pow(hy - 0.5*part, 2) <= 1.2); 
+                
+                case 'star': 
+                    // Simple 4-point star logic
+                    let dist = Math.sqrt(nx*nx + ny*ny);
+                    let angle = Math.atan2(ny, nx);
+                    let threshold = 0.5 + 0.4 * Math.cos(4 * angle);
+                    return dist <= threshold;
+                
+                case 'triangle':
+                    // Pyramid shape
+                    return ny >= Math.abs(nx) - 0.8;
+
+                case 'hourglass':
+                    return (Math.abs(nx) <= Math.abs(ny) + 0.2) || (Math.abs(ny) > 0.8);
+
+                case 'donut':
+                    let d = Math.sqrt(nx*nx + ny*ny);
+                    return (d <= 1.0 && d >= 0.4);
+
+                case 'cross':
+                    return (Math.abs(nx) < 0.35 || Math.abs(ny) < 0.35);
+
+                case 'pacman':
+                    let pd = Math.sqrt(nx*nx + ny*ny);
+                    if (pd > 1.0) return false;
+                    // Cut out a wedge
+                    let pang = Math.atan2(ny, nx); // -PI to PI
+                    // Cut right side (angle 0)
+                    return !(Math.abs(pang) < 0.6 && nx > 0);
+
+                default: return true;
+            }
+        }
+
+        index(c, r) {
+            if (c < 0 || r < 0 || c >= this.cols || r >= this.rows) return -1;
+            return c + r * this.cols;
+        }
+
+        generate() {
+            // Get active cells
+            let active = this.grid.filter(c => c.active);
+            if (active.length === 0) return;
+
+            // Pick standard Start/End (Top-Left / Bottom-Right approximation)
+            // Or just first/last in the active array which usually works for shapes
+            this.start = active[0];
+            this.end = active[active.length - 1];
+
+            // Randomized Prim's or Recursive Backtracker
+            // Using Recursive Backtracker (DFS) for long windy paths
+            let stack = [this.start];
+            this.start.visited = true;
+
+            while(stack.length > 0) {
+                let curr = stack[stack.length - 1];
+                let neighbors = this.getNeighbors(curr);
+                
+                if (neighbors.length > 0) {
+                    let next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                    this.removeWalls(curr, next);
+                    next.visited = true;
+                    stack.push(next);
+                } else {
+                    stack.pop();
+                }
+            }
+        }
+
+        solve() {
+            // BFS/DFS to find path
+            let queue = [{ cell: this.start, path: [this.start] }];
+            let visited = new Set([this.start]);
+
+            while(queue.length > 0) {
+                let { cell, path } = queue.shift();
+                if (cell === this.end) {
+                    this.path = path;
+                    return;
+                }
+                
+                let neighbors = this.getConnectedNeighbors(cell);
+                for(let n of neighbors) {
+                    if(!visited.has(n)) {
+                        visited.add(n);
+                        queue.push({ cell: n, path: [...path, n] });
+                    }
+                }
+            }
+        }
+
+        // Get unvisited neighbors for generation
+        getNeighbors(cell) {
+            let res = [];
+            // Top, Right, Bottom, Left
+            [[0,-1],[1,0],[0,1],[-1,0]].forEach(d => {
+                let idx = this.index(cell.c + d[0], cell.r + d[1]);
+                if(idx !== -1) {
+                    let n = this.grid[idx];
+                    if(n.active && !n.visited) res.push(n);
+                }
+            });
+            return res;
+        }
+
+        // Get accessible neighbors for solving (no walls)
+        getConnectedNeighbors(cell) {
+            let res = [];
+            // Top
+            let t = this.grid[this.index(cell.c, cell.r - 1)];
+            if(t && t.active && !cell.walls[0]) res.push(t);
+            // Right
+            let r = this.grid[this.index(cell.c + 1, cell.r)];
+            if(r && r.active && !cell.walls[1]) res.push(r);
+            // Bottom
+            let b = this.grid[this.index(cell.c, cell.r + 1)];
+            if(b && b.active && !cell.walls[2]) res.push(b);
+            // Left
+            let l = this.grid[this.index(cell.c - 1, cell.r)];
+            if(l && l.active && !cell.walls[3]) res.push(l);
+            return res;
+        }
+
+        removeWalls(a, b) {
+            let x = a.c - b.c;
+            // neighbor is left (x=1) -> a left wall(3) gone, b right wall(1) gone
+            if (x === 1) { a.walls[3] = false; b.walls[1] = false; }
+            else if (x === -1) { a.walls[1] = false; b.walls[3] = false; }
+            
+            let y = a.r - b.r;
+            // neighbor is top (y=1) -> a top wall(0) gone, b bottom wall(2) gone
+            if (y === 1) { a.walls[0] = false; b.walls[2] = false; }
+            else if (y === -1) { a.walls[2] = false; b.walls[0] = false; }
+        }
+    }
+
+    class Cell {
+        constructor(c, r) {
+            this.c = c; this.r = r;
+            // Top, Right, Bottom, Left
+            this.walls = [true, true, true, true];
+            this.visited = false;
+            this.active = true;
+        }
+    }
+</script>
+</body>
+</html>

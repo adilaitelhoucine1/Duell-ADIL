@@ -1,0 +1,287 @@
+:root {
+    --bg-color: #e8eaed;
+    --grid-border: #333;
+    --cell-border: #999;
+    --black-cell: #2c2c2c;
+    --white-cell: #ffffff;
+    --selected-bg: #bbdefb;
+    --highlight-bg: #e3f2fd;
+    --text-color: #202124;
+    --note-color: #757575;
+    --clue-color: #ffffff;
+    --error-bg: #ffcdd2;
+}
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--bg-color);
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.main-container {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    max-width: 700px;
+    width: 100%;
+}
+
+header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #1a73e8;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+select {
+    padding: 8px 12px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.9rem;
+    background: white;
+    cursor: pointer;
+}
+
+button {
+    padding: 8px 12px;
+    border: none;
+    background: #1a73e8;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+button:hover { background: #1557b0; }
+button:disabled { background: #ccc; cursor: not-allowed; }
+
+.toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.9rem;
+}
+
+.game-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+/* Kakuro Grid */
+.kakuro-grid {
+    display: grid;
+    border: 3px solid var(--grid-border);
+    background: var(--grid-border);
+    gap: 1px;
+    user-select: none;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+}
+
+.cell {
+    width: 48px;
+    height: 48px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 1.7rem;
+    cursor: pointer;
+    position: relative;
+    background-color: var(--white-cell);
+}
+
+/* White (input) cells */
+.cell.white-cell {
+    background-color: var(--white-cell);
+}
+
+.cell.white-cell.selected {
+    background-color: var(--selected-bg) !important;
+}
+
+.cell.white-cell.highlighted {
+    background-color: var(--highlight-bg);
+}
+
+.cell.white-cell.error {
+    background-color: var(--error-bg) !important;
+    color: #d32f2f;
+}
+
+/* Black (clue) cells */
+.cell.black-cell {
+    background-color: var(--black-cell);
+    cursor: default;
+    position: relative;
+}
+
+/* Diagonal line in black cells */
+.cell.black-cell::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to bottom left, 
+        transparent calc(50% - 1px), 
+        #555 calc(50% - 1px), 
+        #555 calc(50% + 1px), 
+        transparent calc(50% + 1px)
+    );
+    pointer-events: none;
+}
+
+/* Clue numbers in black cells */
+.clue-horizontal {
+    position: absolute;
+    top: 3px;
+    right: 5px;
+    font-size: 0.9rem;
+    /* font-weight: bold; */
+    color: var(--clue-color);
+    z-index: 2;
+}
+
+.clue-vertical {
+    position: absolute;
+    bottom: 3px;
+    left: 5px;
+    font-size: 0.9rem;
+    /* font-weight: bold; */
+    color: var(--clue-color);
+    z-index: 2;
+}
+
+/* Completely black cells (no clues) */
+.cell.solid-black {
+    background-color: var(--black-cell);
+    cursor: default;
+}
+
+.cell.solid-black::before {
+    display: none;
+}
+
+/* Notes grid */
+.notes-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+.note-num {
+    font-size: 0.55rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--note-color);
+}
+
+/* Numpad */
+.numpad {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 400px;
+}
+
+.num-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: white;
+    border: 1px solid #ccc;
+    color: #333;
+    font-size: 1.2rem;
+}
+
+.num-btn:hover { background: #eee; }
+.num-btn.action-btn { font-size: 1rem; color: #d32f2f; }
+
+.message-area {
+    font-weight: bold;
+    height: 24px;
+    text-align: center;
+    font-size: 1rem;
+}
+
+/* PDF Controls */
+.pdf-controls {
+    width: 100%;
+    background: #f1f3f4;
+    padding: 10px 15px;
+    border-radius: 8px;
+}
+
+.pdf-controls h3 {
+    margin: 0 0 10px 0;
+    font-size: 1rem;
+    color: #5f6368;
+}
+
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.control-group input[type="number"] {
+    width: 60px;
+    padding: 6px 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 0.9rem;
+}
+
+/* Responsive */
+@media (max-width: 550px) {
+    .cell {
+        width: 38px;
+        height: 38px;
+        font-size: 1.1rem;
+    }
+    
+    .clue-horizontal, .clue-vertical {
+        font-size: 0.6rem;
+    }
+    
+    header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

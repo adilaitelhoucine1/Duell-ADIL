@@ -1,0 +1,443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sudoku Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --primary-color: #2c3e50;
+            --accent-blue: #3498db;
+            --accent-green: #27ae60;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: #f4f4f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        h1 { margin-bottom: 20px; color: var(--primary-color); }
+
+        /* --- CONTROL PANEL --- */
+        .controls {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            max-width: 950px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label { font-weight: bold; font-size: 0.85rem; color: #555; }
+        
+        select, input {
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            width: 140px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            transition: transform 0.1s, opacity 0.2s;
+            height: 46px; 
+        }
+
+        button:active { transform: scale(0.98); }
+        button:hover { opacity: 0.9; }
+
+        .btn-preview { background-color: var(--accent-blue); }
+        .btn-pdf { background-color: var(--accent-green); }
+
+        /* --- PREVIEW AREA --- */
+        .preview-container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+        }
+        
+        .preview-label {
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sheet {
+            background: white;
+            width: 210mm; 
+            height: 297mm; 
+            padding: 0; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center; 
+            transform: scale(0.55); 
+            transform-origin: top center;
+            border: 1px solid #eee;
+        }
+
+        /* --- SUDOKU GRID --- */
+        .puzzle-wrapper {
+            display: grid;
+            gap: 0; 
+            border: 3px solid #333; /* Outer Thick Border */
+            background: #333; /* For grid lines */
+        }
+
+        .cell {
+            width: 50px; height: 50px;
+            background: #fff;
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            font-weight: bold;
+            line-height: 1;
+            box-sizing: border-box;
+            color: #2c3e50;
+        }
+
+        /* Helper classes applied via JS for internal borders */
+        .border-right-thick { border-right: 3px solid #333 !important; }
+        .border-bottom-thick { border-bottom: 3px solid #333 !important; }
+        .border-right-thin { border-right: 1px solid #aaa; }
+        .border-bottom-thin { border-bottom: 1px solid #aaa; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Sudoku Generator</h1>
+
+    <div class="controls">
+        <div class="input-group">
+            <label>Grid Size</label>
+            <select id="gridSize">
+                <option value="4">4 x 4 (Kids)</option>
+                <option value="6">6 x 6 (Junior)</option>
+                <option value="9" selected>9 x 9 (Standard)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Difficulty (Holes)</label>
+            <select id="difficulty">
+                <option value="easy">Easy</option>
+                <option value="medium" selected>Medium</option>
+                <option value="hard">Hard</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Number of Puzzles</label>
+            <input type="number" id="pageCount" value="1" min="1" max="50">
+        </div>
+
+        <div class="input-group">
+            <label>Font Size (pt)</label>
+            <input type="number" id="numSize" value="24" min="10" max="40">
+        </div>
+
+        <button class="btn-preview" onclick="generatePreview()">Preview</button>
+        <button class="btn-pdf" id="btnPdf" onclick="downloadPDF()">Download PDF</button>
+    </div>
+
+    <div class="preview-container">
+        <div class="preview-label">Preview</div>
+        <div class="sheet" id="previewSheet">
+            <div id="gridContainer" class="puzzle-wrapper"></div>
+        </div>
+    </div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+
+        // --- 1. CONFIGURATION ---
+        const CONFIG = {
+            '4': { N: 4, boxH: 2, boxW: 2, holes: { easy: 4, medium: 8, hard: 10 } },
+            '6': { N: 6, boxH: 2, boxW: 3, holes: { easy: 12, medium: 18, hard: 24 } },
+            '9': { N: 9, boxH: 3, boxW: 3, holes: { easy: 30, medium: 45, hard: 55 } }
+        };
+
+        // --- 2. LOGIC: Sudoku Generation ---
+        
+        function getSafeNumber(board, row, col, N, boxH, boxW) {
+            let safe = [];
+            for (let num = 1; num <= N; num++) {
+                if (isSafe(board, row, col, num, N, boxH, boxW)) {
+                    safe.push(num);
+                }
+            }
+            return safe;
+        }
+
+        function isSafe(board, row, col, num, N, boxH, boxW) {
+            // Check Row & Col
+            for (let x = 0; x < N; x++) {
+                if (board[row][x] === num || board[x][col] === num) return false;
+            }
+            // Check Box
+            let startRow = row - row % boxH;
+            let startCol = col - col % boxW;
+            for (let i = 0; i < boxH; i++) {
+                for (let j = 0; j < boxW; j++) {
+                    if (board[i + startRow][j + startCol] === num) return false;
+                }
+            }
+            return true;
+        }
+
+        function fillBoard(board, N, boxH, boxW) {
+            // Fill diagonal boxes first (independent) to ensure randomness
+            for (let i = 0; i < N; i += (i < boxH * boxW ? Math.max(boxH, boxW) : N)) {
+               // A bit complex to genericize diagonal filling for non-square boxes (like 6x6)
+               // So we stick to a pure recursive solver with random input for simplicity and robustness
+            }
+            return solveBoard(board, N, boxH, boxW);
+        }
+
+        function solveBoard(board, N, boxH, boxW) {
+            for (let row = 0; row < N; row++) {
+                for (let col = 0; col < N; col++) {
+                    if (board[row][col] === 0) {
+                        let nums = Array.from({length: N}, (_, i) => i + 1);
+                        nums.sort(() => Math.random() - 0.5); // Randomize order
+
+                        for (let num of nums) {
+                            if (isSafe(board, row, col, num, N, boxH, boxW)) {
+                                board[row][col] = num;
+                                if (solveBoard(board, N, boxH, boxW)) return true;
+                                board[row][col] = 0;
+                            }
+                        }
+                        return false;
+                    }
+                }
+            }
+            return true;
+        }
+
+        function createPuzzle(typeKey, diffKey) {
+            const conf = CONFIG[typeKey];
+            const N = conf.N;
+            
+            // 1. Create full solution
+            let grid = Array.from({ length: N }, () => Array(N).fill(0));
+            
+            // Seed the first row randomly to ensure variety before solving
+            let firstRow = Array.from({length: N}, (_, i) => i + 1);
+            firstRow.sort(() => Math.random() - 0.5);
+            grid[0] = firstRow;
+
+            solveBoard(grid, N, conf.boxH, conf.boxW);
+            
+            // Clone for solution
+            let solution = grid.map(row => [...row]);
+
+            // 2. Remove digits
+            let attempts = conf.holes[diffKey];
+            let puzzle = grid.map(row => [...row]);
+            
+            while (attempts > 0) {
+                let r = Math.floor(Math.random() * N);
+                let c = Math.floor(Math.random() * N);
+                if (puzzle[r][c] !== 0) {
+                    puzzle[r][c] = 0;
+                    attempts--;
+                }
+            }
+
+            return { puzzle, solution, conf };
+        }
+
+        // --- 3. HTML PREVIEW ---
+        function generatePreview() {
+            const container = document.getElementById('gridContainer');
+            const sizeKey = document.getElementById('gridSize').value;
+            const diffKey = document.getElementById('difficulty').value;
+            const fontSizeVal = document.getElementById('numSize').value;
+
+            const data = createPuzzle(sizeKey, diffKey);
+            const { puzzle, conf } = data;
+            
+            container.innerHTML = '';
+            container.style.gridTemplateColumns = `repeat(${conf.N}, auto)`;
+            
+            // Adjust cell size for preview based on grid size
+            let cellPx = 50;
+            if(conf.N === 9) cellPx = 40;
+
+            for (let r = 0; r < conf.N; r++) {
+                for (let c = 0; c < conf.N; c++) {
+                    let cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.style.width = cellPx + "px";
+                    cell.style.height = cellPx + "px";
+                    cell.style.fontSize = (parseInt(fontSizeVal)) + 'px';
+
+                    // Internal Borders
+                    if ((c + 1) % conf.boxW === 0 && c !== conf.N - 1) cell.classList.add('border-right-thick');
+                    else if (c !== conf.N - 1) cell.classList.add('border-right-thin');
+
+                    if ((r + 1) % conf.boxH === 0 && r !== conf.N - 1) cell.classList.add('border-bottom-thick');
+                    else if (r !== conf.N - 1) cell.classList.add('border-bottom-thin');
+
+                    const val = puzzle[r][c];
+                    if (val !== 0) {
+                        cell.innerText = val;
+                    } else {
+                        cell.innerText = '';
+                    }
+
+                    container.appendChild(cell);
+                }
+            }
+        }
+
+        // --- 4. PDF GENERATION ---
+        async function downloadPDF() {
+            const btn = document.getElementById('btnPdf');
+            const originalText = btn.innerText;
+            btn.innerText = "Generating...";
+            btn.disabled = true;
+
+            await new Promise(r => setTimeout(r, 100));
+
+            const doc = new jsPDF('p', 'mm', 'a4');
+            const pageCount = parseInt(document.getElementById('pageCount').value);
+            const sizeKey = document.getElementById('gridSize').value;
+            const diffKey = document.getElementById('difficulty').value;
+            const fontSizePt = parseInt(document.getElementById('numSize').value);
+            
+            // Generate Data
+            let allPuzzles = [];
+            for(let i=0; i<pageCount; i++) {
+                allPuzzles.push(createPuzzle(sizeKey, diffKey));
+            }
+
+            // Draw Pages
+            for(let i=0; i<pageCount; i++) {
+                if(i > 0) doc.addPage();
+                
+                // Puzzle Page
+                drawSudoku(doc, allPuzzles[i], false, fontSizePt, i+1);
+                
+                doc.addPage();
+                // Solution Page
+                drawSudoku(doc, allPuzzles[i], true, fontSizePt, i+1);
+            }
+
+            doc.save(`Sudoku_${sizeKey}x${sizeKey}.pdf`);
+
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+
+        function drawSudoku(doc, data, isSolution, fontSizePt, index) {
+            const { puzzle, solution, conf } = data;
+            const gridData = isSolution ? solution : puzzle;
+
+            const pageWidth = 210;
+            const pageHeight = 297;
+            
+            // Grid Dimensions
+            const margin = 20;
+            const availableWidth = pageWidth - (margin * 2);
+            let cellSize = availableWidth / conf.N;
+            
+            // Cap cell size for small grids
+            if(cellSize > 25) cellSize = 25; 
+
+            const gridW = cellSize * conf.N;
+            const gridH = cellSize * conf.N;
+            const startX = (pageWidth - gridW) / 2;
+            const startY = (pageHeight - gridH) / 2;
+
+            // Title
+            doc.setFontSize(16);
+            doc.setTextColor(50);
+            const title = isSolution ? `Sudoku #${index} - Solution` : `Sudoku #${index}`;
+            doc.text(title, pageWidth/2, startY - 15, { align: 'center' });
+
+            // Draw Cells and Content
+            doc.setFontSize(fontSizePt);
+
+            for(let r=0; r<conf.N; r++) {
+                for(let c=0; c<conf.N; c++) {
+                    let x = startX + c * cellSize;
+                    let y = startY + r * cellSize;
+                    let val = gridData[r][c];
+
+                    // Draw Value
+                    if (val !== 0) {
+                        if (isSolution && puzzle[r][c] === 0) {
+                            doc.setTextColor(100, 100, 100); // Solution numbers are grey
+                        } else {
+                            doc.setTextColor(0, 0, 0); // Original numbers are black
+                        }
+                        doc.text(String(val), x + cellSize/2, y + cellSize/2 + (fontSizePt * 0.1), { align: "center", baseline: "middle" });
+                    }
+                }
+            }
+
+            // Draw Grid Lines (Layered for thickness)
+            
+            // 1. Thin Lines (All cells)
+            doc.setLineWidth(0.1);
+            doc.setDrawColor(150);
+            for(let r=0; r<=conf.N; r++) {
+                doc.line(startX, startY + r*cellSize, startX + gridW, startY + r*cellSize);
+            }
+            for(let c=0; c<=conf.N; c++) {
+                doc.line(startX + c*cellSize, startY, startX + c*cellSize, startY + gridH);
+            }
+
+            // 2. Thick Lines (Box Boundaries)
+            doc.setLineWidth(0.8);
+            doc.setDrawColor(0);
+            
+            // Horizontal Thick Lines
+            for(let r=0; r<=conf.N; r+=conf.boxH) {
+                doc.line(startX, startY + r*cellSize, startX + gridW, startY + r*cellSize);
+            }
+            // Vertical Thick Lines
+            for(let c=0; c<=conf.N; c+=conf.boxW) {
+                doc.line(startX + c*cellSize, startY, startX + c*cellSize, startY + gridH);
+            }
+        }
+
+        window.onload = generatePreview;
+    </script>
+</body>
+</html>

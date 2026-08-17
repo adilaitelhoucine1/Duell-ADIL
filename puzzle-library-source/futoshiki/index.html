@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Futoshiki Generator (6x9)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --font-main: 'Helvetica', 'Arial', sans-serif;
+            --primary-color: #2c3e50;
+            --accent-blue: #3498db;
+            --accent-green: #27ae60;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; /* UI Font */
+            background-color: #f4f4f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        h1 { margin-bottom: 20px; color: var(--primary-color); }
+
+        /* --- CONTROL PANEL --- */
+        .controls {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 20px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            max-width: 950px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label { font-weight: bold; font-size: 0.85rem; color: #555; }
+        
+        select, input {
+            padding: 10px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            width: 140px;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            color: white;
+            transition: transform 0.1s, opacity 0.2s;
+            height: 46px; 
+        }
+
+        button:active { transform: scale(0.98); }
+        button:hover { opacity: 0.9; }
+
+        .btn-preview { background-color: var(--accent-blue); }
+        .btn-pdf { background-color: var(--accent-green); }
+
+        /* --- PREVIEW AREA --- */
+        .preview-container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            background: #fff;
+            border-radius: 8px;
+        }
+        
+        .preview-label {
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+            color: #7f8c8d;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .sheet {
+            background: white;
+            /* 6 x 9 inches in mm */
+            width: 152.4mm; 
+            height: 228.6mm; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center; 
+            transform: scale(0.65); /* Scaled up slightly since page is smaller */
+            transform-origin: top center;
+            border: 1px solid #eee;
+        }
+
+        /* --- FUTOSHIKI GRID --- */
+        .puzzle-wrapper {
+            display: grid;
+            gap: 0; 
+            font-family: var(--font-main);
+        }
+
+        .cell {
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            font-weight: bold;
+            box-sizing: border-box;
+            color: #333;
+        }
+
+        .cell-num {
+            border: 2px solid #333;
+            background: #fff;
+        }
+
+        .cell-ineq {
+            font-size: 18px;
+            color: #555;
+            background: transparent;
+        }
+
+        .val-sol { color: #27ae60; }
+        .val-given { color: #000; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Futoshiki Generator (6x9)</h1>
+
+    <div class="controls">
+        <div class="input-group">
+            <label>Grid Size</label>
+            <select id="gridSize">
+                <option value="4">4 x 4</option>
+                <option value="5" selected>5 x 5</option>
+                <option value="6">6 x 6</option>
+                <option value="7">7 x 7</option>
+                <option value="8">8 x 8</option>
+                <option value="9">9 x 9</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Difficulty</label>
+            <select id="difficulty">
+                <option value="0.3">Easy</option>
+                <option value="0.5" selected>Medium</option>
+                <option value="0.7">Hard</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Font Family</label>
+            <select id="fontFamily">
+                <option value="helvetica" selected>Helvetica (Sans)</option>
+                <option value="times">Times (Serif)</option>
+                <option value="courier">Courier (Mono)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Font Size (pt)</label>
+            <input type="number" id="numSize" value="20" min="10" max="40">
+        </div>
+
+        <div class="input-group">
+            <label>Count</label>
+            <input type="number" id="pageCount" value="5" min="1" max="50" style="width:80px">
+        </div>
+
+        <button class="btn-preview" onclick="generatePreview()">Preview</button>
+        <button class="btn-pdf" id="btnPdf" onclick="downloadPDF()">Download PDF</button>
+    </div>
+
+    <div class="preview-container">
+        <div class="preview-label">Preview (6" x 9")</div>
+        <div class="sheet" id="previewSheet">
+            <div id="gridContainer" class="puzzle-wrapper"></div>
+        </div>
+    </div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+
+        // --- 1. LOGIC: Futoshiki Generation ---
+        
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function isSafe(grid, r, c, val, size) {
+            for (let x = 0; x < size; x++) {
+                if (grid[r][x] === val) return false;
+                if (grid[x][c] === val) return false;
+            }
+            return true;
+        }
+
+        function fillLatinSquare(grid, r, c, size) {
+            if (r === size) return true;
+            let nextR = c === size - 1 ? r + 1 : r;
+            let nextC = c === size - 1 ? 0 : c + 1;
+
+            if (grid[r][c] !== 0) return fillLatinSquare(grid, nextR, nextC, size);
+
+            let nums = Array.from({length: size}, (_, i) => i + 1);
+            shuffle(nums);
+
+            for (let num of nums) {
+                if (isSafe(grid, r, c, num, size)) {
+                    grid[r][c] = num;
+                    if (fillLatinSquare(grid, nextR, nextC, size)) return true;
+                    grid[r][c] = 0;
+                }
+            }
+            return false;
+        }
+
+        function createPuzzleData(size, difficulty) {
+            let grid = Array.from({ length: size }, () => Array(size).fill(0));
+            fillLatinSquare(grid, 0, 0, size);
+
+            let hIneq = Array.from({ length: size }, () => Array(size - 1).fill(null));
+            let vIneq = Array.from({ length: size - 1 }, () => Array(size).fill(null));
+
+            // Probability logic
+            let constraintProb = 0.6 - (difficulty * 0.4); 
+
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size - 1; c++) {
+                    if (Math.random() < constraintProb) {
+                        hIneq[r][c] = grid[r][c] < grid[r][c+1] ? '<' : '>';
+                    }
+                }
+            }
+            for (let r = 0; r < size - 1; r++) {
+                for (let c = 0; c < size; c++) {
+                    if (Math.random() < constraintProb) {
+                        vIneq[r][c] = grid[r][c] < grid[r+1][c] ? '<' : '>'; 
+                    }
+                }
+            }
+
+            let mask = [];
+            for (let r = 0; r < size; r++) {
+                let rowMask = [];
+                for (let c = 0; c < size; c++) {
+                    rowMask.push(Math.random() > difficulty); 
+                }
+                mask.push(rowMask);
+            }
+
+            return { grid, mask, hIneq, vIneq, size };
+        }
+
+        // --- 2. HTML PREVIEW ---
+        function generatePreview() {
+            const container = document.getElementById('gridContainer');
+            const size = parseInt(document.getElementById('gridSize').value);
+            const diff = parseFloat(document.getElementById('difficulty').value);
+            const fontSizeVal = document.getElementById('numSize').value;
+            const fontChoice = document.getElementById('fontFamily').value;
+
+            // Update CSS Variable for font
+            let cssFont = 'Helvetica, Arial, sans-serif';
+            if (fontChoice === 'times') cssFont = '"Times New Roman", Times, serif';
+            if (fontChoice === 'courier') cssFont = '"Courier New", Courier, monospace';
+            document.documentElement.style.setProperty('--font-main', cssFont);
+
+            const data = createPuzzleData(size, diff);
+            
+            container.innerHTML = '';
+            
+            const displaySize = size * 2 - 1;
+            let colTracks = '';
+            for(let i=0; i<displaySize; i++) {
+                colTracks += (i % 2 === 0) ? '50px ' : '20px ';
+            }
+            container.style.gridTemplateColumns = colTracks;
+
+            for (let r = 0; r < displaySize; r++) {
+                for (let c = 0; c < displaySize; c++) {
+                    let cell = document.createElement('div');
+                    cell.className = 'cell';
+
+                    let logicR = Math.floor(r / 2);
+                    let logicC = Math.floor(c / 2);
+
+                    // Number Cell
+                    if (r % 2 === 0 && c % 2 === 0) {
+                        cell.classList.add('cell-num');
+                        cell.style.fontSize = fontSizeVal + 'px';
+                        cell.style.height = '50px';
+
+                        const val = data.grid[logicR][logicC];
+                        const isVisible = data.mask[logicR][logicC];
+
+                        if (isVisible) {
+                            cell.innerText = val;
+                            cell.classList.add('val-given');
+                        }
+                    }
+                    // Horizontal Inequality
+                    else if (r % 2 === 0 && c % 2 !== 0) {
+                        cell.classList.add('cell-ineq');
+                        let sign = data.hIneq[logicR][logicC]; 
+                        if (sign) cell.innerText = sign;
+                    }
+                    // Vertical Inequality
+                    else if (r % 2 !== 0 && c % 2 === 0) {
+                        cell.classList.add('cell-ineq');
+                        let sign = data.vIneq[logicR][logicC]; 
+                        if (sign === '<') cell.innerText = '∧'; 
+                        if (sign === '>') cell.innerText = '∨';
+                    }
+
+                    container.appendChild(cell);
+                }
+            }
+        }
+
+        // --- 3. PDF GENERATION ---
+        async function downloadPDF() {
+            const btn = document.getElementById('btnPdf');
+            const originalText = btn.innerText;
+            btn.innerText = "Generating...";
+            btn.disabled = true;
+
+            await new Promise(r => setTimeout(r, 100));
+
+            // PAGE SIZE: 6 x 9 inches
+            // 6 in = 152.4 mm
+            // 9 in = 228.6 mm
+            const doc = new jsPDF({
+                orientation: 'p',
+                unit: 'mm',
+                format: [152.4, 228.6] 
+            });
+
+            const pageCount = parseInt(document.getElementById('pageCount').value);
+            const size = parseInt(document.getElementById('gridSize').value);
+            const difficulty = parseFloat(document.getElementById('difficulty').value);
+            const fontSizePt = parseInt(document.getElementById('numSize').value);
+            const fontName = document.getElementById('fontFamily').value; // helvetica, times, courier
+            
+            // Layout Calculations for 6 inches width (152.4mm)
+            // Margins: let's say 12.7mm (0.5 inch) on sides => 127mm usable width
+            let gapRatio = 0.3;
+            let availableWidth = 125; 
+            
+            // Calculate Cell Size
+            let cellSize = availableWidth / (size * (1 + gapRatio) - gapRatio);
+            if (cellSize > 18) cellSize = 18; // Max visual cap
+            let gapSize = cellSize * gapRatio;
+
+            let allPuzzles = [];
+            for(let i=0; i<pageCount; i++) {
+                allPuzzles.push(createPuzzleData(size, difficulty));
+            }
+
+            for(let i=0; i<pageCount; i++) {
+                if(i > 0) doc.addPage(); 
+                
+                // --- PUZZLE PAGE ---
+                doc.setFont(fontName, 'normal');
+                doc.setFontSize(14);
+                doc.setTextColor(0);
+                doc.text(`Puzzle ${i+1}`, 152.4/2, 20, {align: 'center'}); // Center based on page width
+                
+                drawPageOnPDF(doc, allPuzzles[i], false, fontSizePt, cellSize, gapSize, fontName);
+
+                doc.addPage(); 
+                
+                // --- SOLUTION PAGE ---
+                doc.setFont(fontName, 'normal');
+                doc.setFontSize(14);
+                doc.setTextColor(0);
+                doc.text(`Solution ${i+1}`, 152.4/2, 20, {align: 'center'});
+                
+                drawPageOnPDF(doc, allPuzzles[i], true, fontSizePt, cellSize, gapSize, fontName);
+            }
+
+            doc.save('Futoshiki_6x9.pdf');
+
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+
+        function drawPageOnPDF(doc, data, isSolution, fontSizePt, cellSize, gapSize, fontName) {
+            const pageWidth = 152.4; // 6 inches
+            const pageHeight = 228.6; // 9 inches
+            const size = data.size;
+            
+            const totalWidth = size * cellSize + (size - 1) * gapSize;
+            
+            const startX = (pageWidth - totalWidth) / 2;
+            const startY = (pageHeight - totalWidth) / 2; 
+
+            doc.setLineWidth(0.4);
+            
+            for(let r=0; r<size; r++) {
+                for(let c=0; c<size; c++) {
+                    let x = startX + c * (cellSize + gapSize);
+                    let y = startY + r * (cellSize + gapSize);
+
+                    // Draw Box
+                    doc.setDrawColor(0);
+                    doc.rect(x, y, cellSize, cellSize);
+
+                    // Draw Number
+                    const val = data.grid[r][c];
+                    const isVisible = data.mask[r][c];
+
+                    if (isSolution || isVisible) {
+                        doc.setFont(fontName, 'bold'); // Bold for numbers
+                        doc.setFontSize(fontSizePt);
+                        
+                        if (isSolution && !isVisible) {
+                            doc.setTextColor(100, 100, 100); // Grey for solution values
+                        } else {
+                            doc.setTextColor(0, 0, 0); // Black for given
+                        }
+                        
+                        doc.text(String(val), x + cellSize/2, y + cellSize/2, { align: "center", baseline: "middle" });
+                    }
+
+                    // Draw Horizontal Inequality
+                    if (c < size - 1) {
+                        let sign = data.hIneq[r][c];
+                        if (sign) {
+                            doc.setTextColor(50);
+                            doc.setFont(fontName, 'normal');
+                            doc.setFontSize(fontSizePt * 0.7);
+                            let gapX = x + cellSize + gapSize/2;
+                            let gapY = y + cellSize/2;
+                            // Tweaking vertical alignment for standard fonts
+                            doc.text(sign, gapX, gapY + 0.5, { align: "center", baseline: "middle" });
+                        }
+                    }
+
+                    // Draw Vertical Inequality (Manually drawn for better look)
+                    if (r < size - 1) {
+                        let sign = data.vIneq[r][c];
+                        if (sign) {
+                            let gapX = x + cellSize/2;
+                            let gapY = y + cellSize + gapSize/2;
+                            
+                            doc.setDrawColor(50);
+                            doc.setLineWidth(0.3);
+                            if (sign === '<') {
+                                // ^ shape
+                                doc.line(gapX - 1.5, gapY + 1.2, gapX, gapY - 1.2);
+                                doc.line(gapX, gapY - 1.2, gapX + 1.5, gapY + 1.2);
+                            } else {
+                                // v shape
+                                doc.line(gapX - 1.5, gapY - 1.2, gapX, gapY + 1.2);
+                                doc.line(gapX, gapY + 1.2, gapX + 1.5, gapY - 1.2);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        window.onload = generatePreview;
+    </script>
+</body>
+</html>

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Game Hub</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Home View -->
+  <div id="home-view" class="container">
+    <header>
+      <h1>Puzzles</h1>
+      <!-- <p class="subtitle">A collection of logic puzzles and challenges.</p> -->
+    </header>
+    
+    <div id="games-list" class="games-grid">
+      <!-- Games will be injected here -->
+    </div>
+  </div>
+
+  <!-- Player View (Overlay) -->
+  <div id="player-view">
+    <div class="player-header">
+      <a href="index.html" class="home-btn" onclick="
+        event.preventDefault(); 
+        navigateTo('index.html');"
+      >
+        ← Back to Hub
+      </a>
+      <span class="game-title-display" id="game-title-display"></span>
+      <div class="nav-controls">
+        <button id="btn-prev" class="nav-btn">Previous</button>
+        <button id="btn-next" class="nav-btn">Next</button>
+      </div>
+    </div>
+    <iframe id="game-client" class="game-frame" frameborder="0"></iframe>
+  </div>
+
+  <!-- Config (Must be loaded first) -->
+  <script src="games.js"></script>
+  <!-- Main Logic -->
+  <script src="script.js"></script>
+</body>
+</html>

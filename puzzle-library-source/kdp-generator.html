@@ -1,0 +1,5427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KDP Advent Calendar Generator</title>
+<style>
+/* ===================================================================
+   RESET & BASE
+=================================================================== */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root{
+  --primary: #1a73e8;
+  --primary-dark: #1557b0;
+  --bg: #f5f7fa;
+  --white: #ffffff;
+  --text: #1a1a2e;
+  --text-light: #6b7280;
+  --border: #e8ecf1;
+  --radius: 12px;
+  --shadow: 0 2px 10px rgba(0,0,0,0.05);
+  --shadow-lg: 0 8px 30px rgba(0,0,0,0.10);
+  --green: #16a34a;
+  --red: #dc2626;
+  --transition: 0.3s ease;
+}
+
+body{
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+}
+
+button{ font-family: inherit; cursor: pointer; }
+input, select{ font-family: inherit; }
+
+/* ===================================================================
+   HEADER
+=================================================================== */
+.app-header{
+  background: var(--white);
+  border-bottom: 1px solid var(--border);
+  padding: 20px 32px;
+  text-align: center;
+}
+.app-header h1{
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.app-header h1 span{ color: var(--primary); }
+.app-header p{
+  color: var(--text-light);
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+/* ===================================================================
+   LAYOUT
+=================================================================== */
+.app-main{
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 32px 20px 80px;
+}
+
+/* ===================================================================
+   STEPPER
+=================================================================== */
+.stepper{
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  margin-bottom: 32px;
+  user-select: none;
+}
+.step-item{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity var(--transition);
+  min-width: 90px;
+}
+.step-item.reachable{ opacity: 0.8; }
+.step-item.active{ opacity: 1; }
+.step-item:hover.reachable{ opacity: 1; }
+.step-circle{
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--white);
+  border: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.9rem;
+  color: var(--text-light);
+  transition: all var(--transition);
+}
+.step-item.active .step-circle{
+  background: var(--primary);
+  border-color: var(--primary);
+  color: var(--white);
+  box-shadow: 0 0 0 4px rgba(26,115,232,0.15);
+}
+.step-item.done .step-circle{
+  background: var(--green);
+  border-color: var(--green);
+  color: var(--white);
+}
+.step-label{
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-light);
+  white-space: nowrap;
+}
+.step-item.active .step-label{ color: var(--primary); }
+.step-line{
+  flex: 1;
+  height: 2px;
+  background: var(--border);
+  margin-top: 17px;
+  max-width: 70px;
+  min-width: 20px;
+}
+
+/* ===================================================================
+   STEP PANEL CARD
+=================================================================== */
+.step-panel{
+  background: var(--white);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 32px;
+  display: none;
+  animation: fadeIn 0.35s ease;
+}
+.step-panel.active{ display: block; }
+@keyframes fadeIn{
+  from{ opacity: 0; transform: translateY(8px); }
+  to{ opacity: 1; transform: translateY(0); }
+}
+.panel-title{
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.panel-sub{
+  color: var(--text-light);
+  font-size: 0.9rem;
+  margin-bottom: 24px;
+}
+.panel-footer{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* ===================================================================
+   BUTTONS
+=================================================================== */
+.btn{
+  border: none;
+  border-radius: 8px;
+  padding: 12px 24px;
+  font-size: 0.92rem;
+  font-weight: 600;
+  transition: all var(--transition);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.btn-primary{ background: var(--primary); color: var(--white); }
+.btn-primary:hover{ background: var(--primary-dark); transform: translateY(-1px); }
+.btn-primary:disabled{ background: #a9c6f5; cursor: not-allowed; transform: none; }
+.btn-secondary{ background: var(--bg); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover{ background: #ebeef2; }
+.btn-outline{ background: transparent; color: var(--primary); border: 1px solid var(--primary); }
+.btn-outline:hover{ background: rgba(26,115,232,0.06); }
+.btn-sm{ padding: 8px 14px; font-size: 0.82rem; }
+.btn-block{ width: 100%; justify-content: center; }
+
+/* ===================================================================
+   STEP 1 — SIZE
+=================================================================== */
+.size-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+.size-card{
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+  background: var(--white);
+}
+.size-card:hover{ border-color: #b9d3fb; }
+.size-card.selected{ border-color: var(--primary); background: #f0f6ff; }
+.size-card .check{
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--primary);
+  color: var(--white);
+  font-size: 0.7rem;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.size-card.selected .check{ display: flex; }
+.size-page-icon{
+  width: 44px;
+  height: 56px;
+  border: 2px solid var(--text-light);
+  border-radius: 3px;
+  margin: 0 auto 12px;
+}
+.size-card.selected .size-page-icon{ border-color: var(--primary); }
+.size-card .size-label{ font-weight: 700; font-size: 1rem; }
+.size-card .size-dim{ color: var(--text-light); font-size: 0.8rem; margin-top: 2px; }
+.custom-size-fields{
+  display: none;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 16px;
+}
+.custom-size-fields.visible{ display: grid; }
+
+/* ===================================================================
+   FORM ELEMENTS
+=================================================================== */
+.form-group{ margin-bottom: 18px; }
+.form-group label{
+  display: block;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-bottom: 6px;
+  color: var(--text);
+}
+.form-group .hint{ font-size: 0.75rem; color: var(--text-light); margin-top: 4px; }
+.form-control{
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.9rem;
+  background: var(--white);
+  transition: border-color var(--transition);
+}
+.form-control:focus{ outline: none; border-color: var(--primary); }
+.form-row{ display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+/* ===================================================================
+   STEP 2 — GAMES
+=================================================================== */
+.words-box{
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  margin-top: 10px;
+}
+.words-box:empty::before{
+  content: 'Generated words will appear here...';
+  color: var(--text-light);
+  font-size: 0.82rem;
+}
+.word-chip{
+  background: #eef4fe;
+  color: var(--primary-dark);
+  padding: 5px 10px;
+  border-radius: 20px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 320px;
+}
+.word-chip span{ overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.word-chip button{
+  background: none; border: none; color: var(--primary-dark);
+  font-size: 0.85rem; line-height: 1; opacity: 0.6; flex-shrink: 0;
+}
+.word-chip button:hover{ opacity: 1; }
+
+.global-difficulty{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--bg);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin: 24px 0;
+}
+.global-difficulty label{ font-weight: 700; font-size: 0.85rem; white-space: nowrap; }
+.global-difficulty select{ max-width: 200px; }
+
+.games-grid{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 14px;
+}
+.game-bulk-actions{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 14px;
+  flex-wrap: wrap;
+}
+.game-count{
+  color: var(--text-light);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+.bulk-buttons{ display: flex; gap: 8px; }
+.game-card{
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  transition: all var(--transition);
+  background: var(--white);
+}
+.game-card.on{ border-color: var(--primary); background: #f8fbff; }
+.game-card-top{
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+.game-icon{ font-size: 1.7rem; }
+.game-name{ font-weight: 700; font-size: 0.88rem; margin-top: 6px; }
+
+.switch{
+  position: relative;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+}
+.switch input{ opacity: 0; width: 0; height: 0; }
+.slider{
+  position: absolute; cursor: pointer; inset: 0;
+  background: #d1d5db; border-radius: 22px; transition: var(--transition);
+}
+.slider::before{
+  content: ''; position: absolute; height: 16px; width: 16px;
+  left: 3px; bottom: 3px; background: white; border-radius: 50%; transition: var(--transition);
+}
+.switch input:checked + .slider{ background: var(--primary); }
+.switch input:checked + .slider::before{ transform: translateX(18px); }
+
+.game-difficulty-select{
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 0.78rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin-top: 4px;
+  background: var(--bg);
+  color: var(--text-light);
+}
+.game-card.on .game-difficulty-select{ background: var(--white); color: var(--text); }
+.game-card:not(.on) .game-difficulty-select{ pointer-events: none; }
+
+/* ===================================================================
+   STEP 3 — CUSTOMIZE
+=================================================================== */
+.customize-grid{
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+.customize-card{
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+}
+.customize-card h3{ font-size: 1rem; margin-bottom: 16px; }
+
+.dropzone{
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 28px 16px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition);
+  color: var(--text-light);
+}
+.dropzone.dragover{ border-color: var(--primary); background: #f0f6ff; }
+.dropzone .dz-icon{ font-size: 1.8rem; margin-bottom: 8px; }
+.dropzone p{ font-size: 0.85rem; }
+.dropzone small{ font-size: 0.72rem; }
+
+.pattern-preview{
+  display: none;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+.pattern-preview.visible{ display: flex; }
+.pattern-thumbnails{
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: 8px;
+}
+.pattern-thumb{
+  position: relative;
+  min-width: 0;
+}
+.pattern-thumb img{
+  width: 100%; height: 58px; object-fit: cover;
+  background: repeating-conic-gradient(#eee 0% 25%, #fff 0% 50%) 50%/12px 12px;
+  border-radius: 6px; border: 1px solid var(--border);
+}
+.pattern-thumb button{
+  position: absolute; top: 3px; right: 3px;
+  width: 20px; height: 20px; border: none; border-radius: 50%;
+  background: rgba(0,0,0,0.72); color: #fff; font-size: 0.75rem;
+}
+.pattern-preview-footer{ display: flex; align-items: center; gap: 10px; }
+.pattern-preview .pp-name{ flex: 1; font-size: 0.82rem; }
+.pattern-preview-footer button{ background: none; border: none; color: var(--red); font-size: 0.82rem; }
+
+.range-row{ display: flex; align-items: center; gap: 12px; }
+.range-row input[type=range]{ flex: 1; }
+.range-row .range-val{ font-size: 0.8rem; font-weight: 700; min-width: 50px; text-align: right; }
+
+.number-preview-wrap{
+  margin-top: 18px;
+  display: flex;
+  justify-content: center;
+}
+.number-preview-page{
+  position: relative;
+  width: 140px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.number-preview-page img{
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain;
+}
+.number-preview-page .num{
+  position: relative; z-index: 2; font-weight: 700; transform: scale(0.22);
+}
+
+/* ===================================================================
+   STEP 4 — PREVIEW
+=================================================================== */
+.preview-summary{
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 0.85rem;
+  color: var(--text-light);
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.preview-strip{
+  display: flex;
+  gap: 12px;
+  overflow-x: auto;
+  padding: 10px 4px 20px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+}
+.page-card{
+  flex-shrink: 0;
+  width: 108px;
+  cursor: pointer;
+  text-align: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 8px;
+  background: #fff;
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
+}
+.page-card:hover{
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-lg);
+  border-color: var(--primary);
+}
+.page-card.is-number{ background: #f8fbff; }
+.page-card-icon{ font-size: 1.6rem; margin-bottom: 6px; }
+.page-card-day{ font-weight: 700; font-size: 0.8rem; }
+.page-card-label{ font-size: 0.7rem; color: var(--text-light); margin-top: 2px; }
+
+/* ===================================================================
+   MODAL
+=================================================================== */
+.modal-overlay{
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(20,20,30,0.75);
+  z-index: 500;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+}
+.modal-overlay.visible{ display: flex; }
+.modal-box{
+  background: #fff;
+  border-radius: 10px;
+  overflow: hidden;
+  max-height: 92vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+}
+.modal-head{
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+}
+.modal-head span{ font-weight: 700; font-size: 0.85rem; }
+.modal-head-actions{ display: flex; gap: 8px; align-items: center; }
+.modal-head button{
+  background: var(--bg); border: none; width: 30px; height: 30px; border-radius: 6px;
+  font-size: 0.95rem; display:flex; align-items:center; justify-content:center;
+}
+.modal-head button:hover{ background: #e2e6eb; }
+.modal-body{
+  padding: 20px;
+  overflow: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  background: #ececec;
+}
+.modal-body iframe{ background: #fff; box-shadow: 0 4px 20px rgba(0,0,0,0.15); flex-shrink: 0; }
+
+/* ===================================================================
+   STEP 5 — EXPORT
+=================================================================== */
+.export-options{ display: flex; gap: 12px; margin-bottom: 28px; }
+.export-card{
+  border: 2px solid var(--primary);
+  background: #f0f6ff;
+  border-radius: var(--radius);
+  padding: 14px 18px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--primary-dark);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.export-panel{
+  text-align: center;
+  padding: 30px 10px;
+}
+.progress-track{
+  width: 100%;
+  max-width: 480px;
+  height: 12px;
+  background: var(--bg);
+  border-radius: 20px;
+  margin: 20px auto 10px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.progress-fill{
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--primary), #4c93ee);
+  border-radius: 20px;
+  transition: width 0.35s ease;
+}
+.progress-status{ font-size: 0.85rem; color: var(--text-light); margin-bottom: 10px; }
+.export-icon{ font-size: 2.6rem; margin-bottom: 10px; }
+.export-success{ display: none; }
+.export-success.visible{ display: block; }
+.export-actions{ display: flex; gap: 12px; justify-content: center; margin-top: 20px; }
+
+/* ===================================================================
+   TOASTS
+=================================================================== */
+.toast-container{
+  position: fixed;
+  bottom: 24px; right: 24px;
+  display: flex; flex-direction: column; gap: 10px;
+  z-index: 1000;
+}
+.toast{
+  background: var(--text);
+  color: #fff;
+  padding: 13px 18px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  box-shadow: var(--shadow-lg);
+  display: flex; align-items: center; gap: 10px;
+  min-width: 240px;
+  animation: toastIn 0.3s ease;
+}
+.toast.success{ background: var(--green); }
+.toast.error{ background: var(--red); }
+@keyframes toastIn{
+  from{ opacity: 0; transform: translateX(30px); }
+  to{ opacity: 1; transform: translateX(0); }
+}
+
+/* ===================================================================
+   LOADING OVERLAY
+=================================================================== */
+.loading-overlay{
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(255,255,255,0.85);
+  z-index: 900;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 16px;
+}
+.loading-overlay.visible{ display: flex; }
+.spinner{
+  width: 44px; height: 44px;
+  border: 4px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin{ to{ transform: rotate(360deg); } }
+.loading-overlay .loading-text{ font-size: 0.9rem; color: var(--text); font-weight: 600; }
+
+/* ===================================================================
+   RESPONSIVE
+=================================================================== */
+@media (max-width: 768px){
+  .customize-grid{ grid-template-columns: 1fr; }
+  .form-row{ grid-template-columns: 1fr; }
+  .step-label{ display: none; }
+  .app-main{ padding: 20px 12px 60px; }
+  .step-panel{ padding: 20px; }
+}
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <h1>KDP <span>Advent Calendar</span> Generator</h1>
+  <p>Design and export a print-ready 24-day activity book for Amazon KDP</p>
+</header>
+
+<main class="app-main">
+
+  <!-- ============================ STEPPER ============================ -->
+  <nav class="stepper" id="stepper">
+    <div class="step-item active" data-step="1">
+      <div class="step-circle">1</div>
+      <div class="step-label">Size</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step-item" data-step="2">
+      <div class="step-circle">2</div>
+      <div class="step-label">Games</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step-item" data-step="3">
+      <div class="step-circle">3</div>
+      <div class="step-label">Customize</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step-item" data-step="4">
+      <div class="step-circle">4</div>
+      <div class="step-label">Preview</div>
+    </div>
+    <div class="step-line"></div>
+    <div class="step-item" data-step="5">
+      <div class="step-circle">5</div>
+      <div class="step-label">Export</div>
+    </div>
+  </nav>
+
+  <!-- ============================ STEP 1: SIZE ============================ -->
+  <section class="step-panel active" id="step-1">
+    <h2 class="panel-title">Choose your book size</h2>
+    <p class="panel-sub">Pick a standard Amazon KDP trim size, or set a custom one.</p>
+
+    <div class="size-grid" id="size-grid"></div>
+
+    <div class="custom-size-fields" id="custom-size-fields">
+      <div class="form-group">
+        <label for="custom-width">Width (inches)</label>
+        <input type="number" id="custom-width" class="form-control" min="3" max="20" step="0.1" value="8.5">
+      </div>
+      <div class="form-group">
+        <label for="custom-height">Height (inches)</label>
+        <input type="number" id="custom-height" class="form-control" min="3" max="20" step="0.1" value="11">
+      </div>
+    </div>
+
+    <div class="panel-footer" style="justify-content:flex-end;">
+      <button class="btn btn-primary" onclick="goToStep(2)">Next →</button>
+    </div>
+  </section>
+
+  <!-- ============================ STEP 2: NICHE & GAMES ============================ -->
+  <section class="step-panel" id="step-2">
+    <h2 class="panel-title">Niche & Games</h2>
+    <p class="panel-sub">Describe your theme, generate words with Gemini, and choose which games to include.</p>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="niche-input">Niche / Theme</label>
+        <input type="text" id="niche-input" class="form-control" placeholder="e.g. Animals, Christmas, Space, Ocean">
+      </div>
+      <div class="form-group">
+        <label for="language-select">Book Language</label>
+        <select id="language-select" class="form-control" onchange="setLanguage(this.value)"></select>
+        <div class="hint">Game names, generated words, and in-book puzzle labels all use this language.</div>
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="apikey-input">Gemini API Key</label>
+        <input type="password" id="apikey-input" class="form-control" placeholder="Paste your Gemini API key">
+        <div class="hint">Only used for word-based games (Word Search and Anagram).</div>
+      </div>
+    </div>
+
+    <button class="btn btn-outline" id="generate-words-btn" onclick="generateWordsWithGemini()">✨ Generate Words</button>
+
+    <div class="words-box" id="words-box"></div>
+
+    <div class="global-difficulty">
+      <label for="global-difficulty-select">Difficulty (applies to all games):</label>
+      <select id="global-difficulty-select" class="form-control" onchange="applyGlobalDifficulty(this.value)">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+      <span class="hint">You can still override difficulty per game below.</span>
+    </div>
+
+    <div class="game-bulk-actions">
+      <span class="game-count" id="game-count">0 games selected</span>
+      <div class="bulk-buttons">
+        <button type="button" class="btn btn-outline btn-sm" onclick="selectAllGames()">Select All Games</button>
+        <button type="button" class="btn btn-secondary btn-sm" onclick="clearAllGames()">Clear All</button>
+      </div>
+    </div>
+
+    <div class="games-grid" id="games-grid"></div>
+
+    <div class="panel-footer">
+      <button class="btn btn-secondary" onclick="goToStep(1)">← Back</button>
+      <button class="btn btn-primary" onclick="goToStep(3)">Next →</button>
+    </div>
+  </section>
+
+  <!-- ============================ STEP 3: CUSTOMIZE ============================ -->
+  <section class="step-panel" id="step-3">
+    <h2 class="panel-title">Customize Layout & Numbers</h2>
+    <p class="panel-sub">Choose page backgrounds and keep every puzzle's numbers large, bold, and consistent.</p>
+
+    <div class="customize-grid">
+      <!-- Layout & Pattern -->
+      <div class="customize-card">
+        <h3>Layout & Pattern</h3>
+
+        <div class="form-group">
+          <label for="games-per-number">Games after each number</label>
+          <select id="games-per-number" class="form-control" onchange="state.gamesPerPage = parseInt(this.value,10)">
+            <option value="1">1 game</option>
+            <option value="2">2 games</option>
+            <option value="3">3 games</option>
+          </select>
+          <div class="hint">e.g. 1, game, 2, game, game, 3, game, game, game...</div>
+        </div>
+
+        <div class="form-group">
+          <label>Page Background Collection</label>
+          <div class="dropzone" id="dropzone">
+            <div class="dz-icon">🖼️</div>
+            <p>Drop several PNG or JPG images here, or click to browse</p>
+            <small>One image is chosen randomly for every generated page</small>
+          </div>
+          <input type="file" id="pattern-input" accept="image/png,image/jpeg" multiple style="display:none;">
+          <div class="pattern-preview" id="pattern-preview">
+            <div class="pattern-thumbnails" id="pattern-thumbnails"></div>
+            <div class="pattern-preview-footer">
+              <span class="pp-name" id="pattern-preview-name"></span>
+              <button onclick="removeAllPatterns()" title="Remove all backgrounds">Remove all</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="background-opacity">Background Strength</label>
+          <div class="range-row">
+            <input type="range" id="background-opacity" min="4" max="30" value="12" oninput="updateBackgroundStyle()">
+            <span class="range-val" id="background-opacity-val">12%</span>
+          </div>
+          <div class="hint">A low default opacity keeps numbers and grid lines easy to read.</div>
+        </div>
+
+        <div class="form-group">
+          <label for="background-mode">Image Layout</label>
+          <select id="background-mode" class="form-control" onchange="updateBackgroundStyle()">
+            <option value="cover">Cover page</option>
+            <option value="tile">Repeat as pattern</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Number Style -->
+      <div class="customize-card">
+        <h3>Day Number Style</h3>
+
+        <div class="form-group">
+          <label for="number-color">Number Color</label>
+          <input type="color" id="number-color" class="form-control" value="#1a1a2e" oninput="updateNumberStyle()">
+        </div>
+
+        <div class="form-group">
+          <label for="number-fontsize">Font Size</label>
+          <div class="range-row">
+            <input type="range" id="number-fontsize" min="50" max="200" value="120" oninput="updateNumberStyle()">
+            <span class="range-val" id="fontsize-val">120px</span>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="number-fontfamily">Font Family</label>
+          <select id="number-fontfamily" class="form-control" onchange="updateNumberStyle()">
+            <option value="helvetica">Helvetica (Sans-serif)</option>
+            <option value="times">Times (Serif)</option>
+            <option value="courier">Courier (Monospace)</option>
+          </select>
+          <div class="hint">Limited to the PDF engine's 3 built-in vector fonts, so preview matches print exactly.</div>
+        </div>
+
+        <div class="number-preview-wrap">
+          <div class="number-preview-page" id="number-preview-page">
+            <div class="num" id="number-preview-num">1</div>
+          </div>
+        </div>
+
+        <hr style="border:0;border-top:1px solid var(--border);margin:22px 0;">
+        <h3>Puzzle Number Style</h3>
+
+        <div class="form-group">
+          <label for="puzzle-number-color">Number / Letter Color</label>
+          <input type="color" id="puzzle-number-color" class="form-control" value="#111111" oninput="updatePuzzleStyle()">
+        </div>
+
+        <div class="form-group">
+          <label for="puzzle-fontsize">Target Font Size</label>
+          <div class="range-row">
+            <input type="range" id="puzzle-fontsize" min="12" max="26" value="18" oninput="updatePuzzleStyle()">
+            <span class="range-val" id="puzzle-fontsize-val">18pt</span>
+          </div>
+          <div class="hint">All games use this target size; only cells too small to fit it are reduced safely.</div>
+        </div>
+
+        <div class="form-group">
+          <label for="puzzle-fontfamily">Puzzle Font Family</label>
+          <select id="puzzle-fontfamily" class="form-control" onchange="updatePuzzleStyle()">
+            <option value="helvetica">Helvetica (Sans-serif)</option>
+            <option value="times">Times (Serif)</option>
+            <option value="courier">Courier (Monospace)</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-footer">
+      <button class="btn btn-secondary" onclick="goToStep(2)">← Back</button>
+      <button class="btn btn-primary" onclick="goToStep(4)">Next →</button>
+    </div>
+  </section>
+
+  <!-- ============================ STEP 4: PREVIEW ============================ -->
+  <section class="step-panel" id="step-4">
+    <h2 class="panel-title">Preview</h2>
+    <p class="panel-sub">All 24 days, in order. Click any page to view it larger (real vector PDF render).</p>
+
+    <div class="preview-summary" id="preview-summary"></div>
+    <div class="preview-strip" id="preview-strip"></div>
+
+    <div class="panel-footer">
+      <button class="btn btn-secondary" onclick="goToStep(3)">← Back</button>
+      <button class="btn btn-primary" onclick="startPdfGeneration()">Generate PDF →</button>
+    </div>
+  </section>
+
+  <!-- ============================ STEP 5: EXPORT ============================ -->
+  <section class="step-panel" id="step-5">
+    <h2 class="panel-title">Export</h2>
+    <p class="panel-sub">Your print-ready PDF, built from the pages you just previewed.</p>
+
+    <div class="export-options">
+      <div class="export-card">📄 Digital (No Bleed)</div>
+    </div>
+
+    <div class="export-panel">
+      <div id="export-progress-view">
+        <div class="export-icon">📚</div>
+        <div class="progress-track"><div class="progress-fill" id="progress-fill"></div></div>
+        <div class="progress-status" id="progress-status">Waiting to start...</div>
+      </div>
+
+      <div class="export-success" id="export-success">
+        <div class="export-icon">✅</div>
+        <h3>Your PDF is ready!</h3>
+        <p class="panel-sub" id="export-success-sub"></p>
+        <div class="export-actions">
+          <button class="btn btn-primary" id="download-btn" onclick="downloadPdf()">⬇ Download PDF</button>
+          <button class="btn btn-secondary" onclick="startOver()">↺ Start Over</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<!-- ============================ MODAL (enlarged page view) ============================ -->
+<div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this) closeModal()">
+  <div class="modal-box">
+    <div class="modal-head">
+      <span id="modal-title"></span>
+      <div class="modal-head-actions">
+        <button onclick="modalNav(-1)" title="Previous">‹</button>
+        <button onclick="modalNav(1)" title="Next">›</button>
+        <button onclick="closeModal()" title="Close">✕</button>
+      </div>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+  </div>
+</div>
+
+<!-- ============================ TOASTS ============================ -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- ============================ LOADING OVERLAY ============================ -->
+<div class="loading-overlay" id="loading-overlay">
+  <div class="spinner"></div>
+  <div class="loading-text" id="loading-text">Loading...</div>
+</div>
+
+<!-- jsPDF — same library your own /wordsearch, /sudoku, /mazes, /cross-word
+     generators already depend on. Used directly (no html2pdf/html2canvas)
+     so every page is drawn as crisp print-ready vector PDF content. -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+<script>
+/* =====================================================================
+   CONSTANTS
+===================================================================== */
+const BOOK_SIZES = [
+  { id: '6x9',    label: '6 × 9 in',    w: 6,   h: 9  },
+  { id: '8.5x11', label: '8.5 × 11 in', w: 8.5, h: 11 },
+  { id: '8x10',   label: '8 × 10 in',   w: 8,   h: 10 },
+  { id: '7x10',   label: '7 × 10 in',   w: 7,   h: 10 },
+  { id: 'custom', label: 'Custom Size', w: null, h: null }
+];
+const DEFAULT_BOOK_SIZE_ID = '6x9';
+
+const LANGUAGES = [
+  { code: 'en', label: 'English' },
+  { code: 'de', label: 'Deutsch' },
+  { code: 'it', label: 'Italiano' }
+];
+
+// All requested games are wired to real generators. Crossword is intentionally excluded.
+// `name` fields live in GAME_NAMES below (localized) — use gameName(id) to read them.
+const GAMES = [
+  { id: 'wordsearch',    icon: '🔍' },
+  { id: 'sudoku',        icon: '🔢' },
+  { id: 'jigsawsudoku',  icon: '🧩' },
+  { id: 'maze',          icon: '🧭' },
+  { id: 'kakuro',        icon: '🔷' },
+  { id: 'summenratsel',  icon: '➕' },
+  { id: 'binoxo',        icon: '⭕' },
+  { id: 'crosssudoku',   icon: '✚' },
+  { id: 'killersudoku',  icon: '💀' },
+  { id: 'flowersudoku',  icon: '🌸' },
+  { id: 'crackthecode',  icon: '🔐' },
+  { id: 'futoshiki',     icon: '⚖️' },
+  { id: 'calcudoku',     icon: '➗' },
+  { id: 'anagram',       icon: '🔤' },
+  { id: 'numbersearch',  icon: '#️⃣' },
+  { id: 'mathmatrix',    icon: '🧮' },
+  { id: 'pyramid',       icon: '🔺' },
+  { id: 'vraisfaux',     icon: '✅' },
+  { id: 'guessflag',     icon: '🌍' },
+  { id: 'flag',          icon: '🏳️' }
+];
+
+/* ---------- i18n ---------- */
+const GAME_NAMES = {
+  wordsearch:    { en: 'Word Search', de: 'Wortsuche', it: 'Ricerca di Parole' },
+  sudoku:        { en: 'Sudoku', de: 'Sudoku', it: 'Sudoku' },
+  jigsawsudoku:  { en: 'Jigsaw Sudoku', de: 'Jigsaw-Sudoku', it: 'Sudoku Jigsaw' },
+  maze:          { en: 'Maze', de: 'Labyrinth', it: 'Labirinto' },
+  kakuro:        { en: 'Kakuro', de: 'Kakuro', it: 'Kakuro' },
+  summenratsel:  { en: 'Sum Puzzle', de: 'Summenrätsel', it: 'Puzzle della Somma' },
+  binoxo:        { en: 'Binoxo', de: 'Binoxo', it: 'Binoxo' },
+  crosssudoku:   { en: 'Cross Sudoku', de: 'Kreuz-Sudoku', it: 'Sudoku a Croce' },
+  killersudoku:  { en: 'Killer Sudoku', de: 'Killer-Sudoku', it: 'Sudoku Killer' },
+  flowersudoku:  { en: 'Flower Sudoku', de: 'Blumen-Sudoku', it: 'Sudoku a Fiore' },
+  crackthecode:  { en: 'Crack the Code', de: 'Code knacken', it: 'Decifra il Codice' },
+  futoshiki:     { en: 'Futoshiki', de: 'Futoshiki', it: 'Futoshiki' },
+  calcudoku:     { en: 'Calcudoku', de: 'Calcudoku', it: 'Calcudoku' },
+  anagram:       { en: 'Anagram', de: 'Anagramm', it: 'Anagramma' },
+  numbersearch:  { en: 'Number Search', de: 'Zahlensuche', it: 'Ricerca di Numeri' },
+  mathmatrix:    { en: 'Math Matrix', de: 'Mathe-Matrix', it: 'Matrice Matematica' },
+  pyramid:       { en: 'Number Pyramid', de: 'Zahlenpyramide', it: 'Piramide Numerica' },
+  vraisfaux:     { en: 'True or False', de: 'Wahr oder Falsch', it: 'Vero o Falso' },
+  guessflag:     { en: 'Guess the Flag', de: 'Flagge erraten', it: 'Indovina la Bandiera' },
+  flag:          { en: 'Flag Match', de: 'Flaggen zuordnen', it: 'Abbina le Bandiere' }
+};
+
+const PDF_STRINGS = {
+  across: { en: 'Across', de: 'Waagerecht', it: 'Orizzontale' },
+  down:   { en: 'Down', de: 'Senkrecht', it: 'Verticale' },
+  shape:  { en: 'Shape', de: 'Form', it: 'Forma' },
+  ana_instruction: { en: 'Unscramble the letters to find each word.', de: 'Entwirre die Buchstaben, um jedes Wort zu finden.', it: 'Riordina le lettere per trovare ogni parola.' },
+  nsr_find: { en: 'Find these numbers:', de: 'Finde diese Zahlen:', it: 'Trova questi numeri:' },
+  crkCluesHeader: { en: 'Clues', de: 'Hinweise', it: 'Indizi' },
+  crkNothingCorrect: { en: 'Nothing is correct', de: 'Nichts ist korrekt', it: 'Nessun numero è corretto' },
+  crkCorrectWellPlaced: { en: 'One number is correct and well placed', de: 'Eine Zahl ist korrekt und richtig platziert', it: 'Un numero è corretto e nella posizione giusta' },
+  crkCorrectWrongPlaced: { en: 'One number is correct but wrongly placed', de: 'Eine Zahl ist korrekt aber falsch platziert', it: 'Un numero è corretto ma nella posizione errata' },
+  crkTwoCorrectWrongPlaced: { en: 'Two numbers are correct but wrongly placed', de: 'Zwei Zahlen sind korrekt aber falsch platziert', it: 'Due numeri sono corretti ma nella posizione errata' },
+  crkWorkspace: { en: 'Workspace:', de: 'Notizen:', it: 'Note:' },
+  crkWorkspaceNote: { en: '(Use this space for notes)', de: '(Hier Notizen machen)', it: '(Usa questo spazio per le note)' },
+  crkYourAnswer: { en: 'Your Answer', de: 'Deine Antwort', it: 'La Tua Risposta' },
+  vfInstruction: { en: 'Mark each statement True or False.', de: 'Markiere jede Aussage als wahr oder falsch.', it: 'Segna ogni affermazione come vera o falsa.' },
+  vfTrue: { en: 'TRUE', de: 'WAHR', it: 'VERO' },
+  vfFalse: { en: 'FALSE', de: 'FALSCH', it: 'FALSO' },
+  flagGuessInstruction: { en: 'Write the country name under each flag.', de: 'Schreibe den Ländernamen unter jede Flagge.', it: 'Scrivi il nome del paese sotto ogni bandiera.' },
+  flagMatchInstruction: { en: 'Match every numbered flag to the correct letter.', de: 'Ordne jeder nummerierten Flagge den richtigen Buchstaben zu.', it: 'Abbina ogni bandiera numerata alla lettera corretta.' }
+};
+
+function gameName(id){
+  const entry = GAME_NAMES[id];
+  if(!entry) return id;
+  return entry[state.language] || entry.en || id;
+}
+
+function t(key){
+  const entry = PDF_STRINGS[key];
+  if(!entry) return key;
+  return entry[state.language] || entry.en || key;
+}
+
+// Uppercases and transliterates accented Latin letters (German/Italian) down
+// to plain A-Z so foreign-language words still fit a letter grid cleanly.
+function normalizeForGrid(word){
+  return String(word || '')
+    .toUpperCase()
+    .replace(/[ÄÀÁÂ]/g, 'A')
+    .replace(/Ö/g, 'OE')
+    .replace(/[ÒÓÔ]/g, 'O')
+    .replace(/Ü/g, 'UE')
+    .replace(/[ÙÚÛ]/g, 'U')
+    .replace(/[ÈÉÊË]/g, 'E')
+    .replace(/[ÌÍÎÏ]/g, 'I')
+    .replace(/ß/g, 'SS')
+    .replace(/Ñ/g, 'N')
+    .replace(/Ç/g, 'C')
+    .replace(/[^A-Z]/g, '');
+}
+
+const DEFAULT_FALLBACK_WORDS = {
+  en: [
+    { word: 'APPLE',    clue: 'A crunchy fruit, keeps the doctor away' },
+    { word: 'BOOK',     clue: 'You read this' },
+    { word: 'CANDY',    clue: 'A sweet treat' },
+    { word: 'DREAM',    clue: 'What you see while sleeping' },
+    { word: 'ELF',      clue: "Santa's little helper" },
+    { word: 'FOREST',   clue: 'Full of trees' },
+    { word: 'GIFT',     clue: 'Something wrapped for you' },
+    { word: 'HOLIDAY',  clue: 'A festive celebration' },
+    { word: 'ICE',      clue: 'Frozen water' },
+    { word: 'JOY',      clue: 'A feeling of great happiness' },
+    { word: 'KITE',     clue: 'Flies on a string in the wind' },
+    { word: 'LIGHT',    clue: 'Opposite of dark' },
+    { word: 'MAGIC',    clue: 'Something seemingly impossible' },
+    { word: 'NORTH',    clue: 'Opposite of south' },
+    { word: 'OCEAN',    clue: 'A huge body of salt water' },
+    { word: 'PEACE',    clue: 'Calm and quiet' },
+    { word: 'QUEEN',    clue: 'A female monarch' },
+    { word: 'RIVER',    clue: 'A flowing body of water' },
+    { word: 'STAR',     clue: 'Twinkles in the night sky' },
+    { word: 'TREE',     clue: 'Has leaves and branches' },
+    { word: 'UMBRELLA', clue: 'Keeps you dry in the rain' },
+    { word: 'VILLAGE',  clue: 'A small community' },
+    { word: 'WINTER',   clue: 'The coldest season' },
+    { word: 'ZEBRA',    clue: 'A black and white striped animal' }
+  ],
+  de: [
+    { word: 'APFEL',       clue: 'Ein knackiges Obst' },
+    { word: 'BUCH',        clue: 'Das liest man' },
+    { word: 'BONBON',      clue: 'Eine süße Nascherei' },
+    { word: 'TRAUM',       clue: 'Was man im Schlaf sieht' },
+    { word: 'ELF',         clue: 'Weihnachtsmanns kleiner Helfer' },
+    { word: 'WALD',        clue: 'Voller Bäume' },
+    { word: 'GESCHENK',    clue: 'Etwas Eingepacktes für dich' },
+    { word: 'FEIERTAG',    clue: 'Ein festlicher Tag' },
+    { word: 'EIS',         clue: 'Gefrorenes Wasser' },
+    { word: 'FREUDE',      clue: 'Ein Gefühl großen Glücks' },
+    { word: 'DRACHEN',     clue: 'Fliegt an einer Schnur im Wind' },
+    { word: 'LICHT',       clue: 'Gegenteil von Dunkelheit' },
+    { word: 'MAGIE',       clue: 'Etwas scheinbar Unmögliches' },
+    { word: 'NORDEN',      clue: 'Gegenteil von Süden' },
+    { word: 'OZEAN',       clue: 'Ein riesiges Meer' },
+    { word: 'FRIEDEN',     clue: 'Ruhe und Stille' },
+    { word: 'PRINZESSIN',  clue: 'Die Tochter eines Königs' },
+    { word: 'FLUSS',       clue: 'Ein fließendes Gewässer' },
+    { word: 'STERN',       clue: 'Funkelt am Nachthimmel' },
+    { word: 'BAUM',        clue: 'Hat Blätter und Äste' },
+    { word: 'REGENSCHIRM', clue: 'Hält dich im Regen trocken' },
+    { word: 'DORF',        clue: 'Eine kleine Gemeinschaft' },
+    { word: 'WINTER',      clue: 'Die kälteste Jahreszeit' },
+    { word: 'ZEBRA',       clue: 'Ein schwarz-weiß gestreiftes Tier' }
+  ],
+  it: [
+    { word: 'MELA',       clue: 'Un frutto croccante' },
+    { word: 'LIBRO',      clue: 'Lo si legge' },
+    { word: 'CARAMELLA',  clue: 'Un dolce gustoso' },
+    { word: 'SOGNO',      clue: 'Quello che vedi mentre dormi' },
+    { word: 'ELFO',       clue: 'Il piccolo aiutante di Babbo Natale' },
+    { word: 'FORESTA',    clue: 'Piena di alberi' },
+    { word: 'REGALO',     clue: 'Qualcosa di incartato per te' },
+    { word: 'FESTA',      clue: 'Una celebrazione festosa' },
+    { word: 'GHIACCIO',   clue: 'Acqua ghiacciata' },
+    { word: 'GIOIA',      clue: 'Un sentimento di grande felicità' },
+    { word: 'AQUILONE',   clue: 'Vola legato a un filo nel vento' },
+    { word: 'LUCE',       clue: 'Il contrario del buio' },
+    { word: 'MAGIA',      clue: 'Qualcosa apparentemente impossibile' },
+    { word: 'NORD',       clue: 'Il contrario del sud' },
+    { word: 'OCEANO',     clue: "Un'enorme distesa d'acqua salata" },
+    { word: 'PACE',       clue: 'Calma e tranquillità' },
+    { word: 'REGINA',     clue: 'Una monarca donna' },
+    { word: 'FIUME',      clue: "Un corso d'acqua" },
+    { word: 'STELLA',     clue: 'Brilla nel cielo notturno' },
+    { word: 'ALBERO',     clue: 'Ha foglie e rami' },
+    { word: 'OMBRELLO',   clue: 'Ti tiene asciutto sotto la pioggia' },
+    { word: 'VILLAGGIO',  clue: 'Una piccola comunità' },
+    { word: 'INVERNO',    clue: 'La stagione più fredda' },
+    { word: 'ZEBRA',      clue: 'Un animale a strisce bianche e nere' }
+  ]
+};
+
+const GEMINI_ENDPOINT = 'https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent';
+
+const TOTAL_DAYS = 24;
+const MM_PER_IN = 25.4;
+
+/* =====================================================================
+   VISUAL STYLE — EDIT THIS ONE BLOCK TO RESTYLE THE WHOLE BOOK
+
+   Modification: the original renderers each hard-coded unrelated font
+   sizes and colors. These shared defaults now drive page backgrounds,
+   titles, puzzle values and border colors. The Step 3 controls can
+   override the puzzle-value font, size and color without editing code.
+===================================================================== */
+const VISUAL_STYLE = {
+  page: {
+    backgroundColor: [255, 255, 255], // RGB paper/background color
+    imageOpacity: 0.12,               // 0.04–0.30 is the safe UI range
+    imageMode: 'cover',               // 'cover' or 'tile'
+    tileWidthMM: 48,                  // tile width when imageMode is 'tile'
+    maxImagePixels: 1600              // downsample uploads to keep PDFs small
+  },
+  fonts: {
+    family: 'helvetica',              // helvetica, times, or courier
+    puzzleTargetSizePt: 18,           // shared target for ALL main grid values
+    puzzleMinimumSizePt: 12,          // used only when a dense grid cannot fit 18pt
+    clueTargetSizePt: 18,             // same large target for Kakuro / Killer / Calcudoku clues
+    relationTargetSizePt: 14,         // +, =, <, > and other relation symbols
+    labelTargetSizePt: 14,            // row/column result labels such as "= B"
+    titleSizePt: 18
+  },
+  colors: {
+    puzzleValue: '#111111',
+    title: [18, 18, 18],
+    grid: [35, 35, 35],
+    gridLight: [145, 145, 145],
+    kakuroBlock: [25, 25, 25],
+    kakuroClue: [255, 255, 255]
+  },
+  borders: {
+    scale: 1,                         // increase to 1.25–1.5 for heavier grids
+    thinMM: 0.25,
+    thickMM: 0.70
+  }
+};
+
+/* =====================================================================
+   GLOBAL STATE
+===================================================================== */
+const state = {
+  bookSize: { id: '6x9', width: '6in', height: '9in', label: '6 × 9 in', wIn: 6, hIn: 9 },
+  language: 'en',
+  niche: '',
+  apiKey: '',
+  words: [],            // [{ word, clue }]
+  selectedGames: [],     // [{ id, difficulty }]
+  gamesPerPage: 1,       // 1, 2, or 3
+  patterns: [],          // [{name, image, dataUrl, width, height}] background collection
+  backgroundStyle: {
+    opacity: VISUAL_STYLE.page.imageOpacity,
+    mode: VISUAL_STYLE.page.imageMode
+  },
+  numberStyle: { color: '#1a1a2e', fontSizePx: 120, fontFamily: 'helvetica' },
+  puzzleStyle: {
+    color: VISUAL_STYLE.colors.puzzleValue,
+    fontSizePt: VISUAL_STYLE.fonts.puzzleTargetSizePt,
+    fontFamily: VISUAL_STYLE.fonts.family
+  },
+  currentStep: 1,
+  maxStepReached: 1,
+  generatedPages: [],    // cached page list built when entering Step 4
+  pdfBlob: null
+};
+window.APP_STATE = state; // exposed for convenience / debugging
+
+let modalPageIndex = 0;
+
+/* =====================================================================
+   INIT
+===================================================================== */
+document.addEventListener('DOMContentLoaded', () => {
+  renderSizeGrid();
+  renderLanguageSelect();
+  renderGamesGrid();
+  setupPatternDropzone();
+  updateBackgroundStyle();
+  updateNumberStyle();
+  updatePuzzleStyle();
+  updateStepperUI();
+});
+
+function renderLanguageSelect(){
+  const select = document.getElementById('language-select');
+  select.innerHTML = LANGUAGES.map(l => `<option value="${l.code}">${l.label}</option>`).join('');
+  select.value = state.language;
+}
+
+/* =====================================================================
+   STEP NAVIGATION
+===================================================================== */
+function goToStep(step){
+  if(step > state.currentStep && !validateStep(state.currentStep)) return;
+
+  if(step === 4){
+    buildGeneratedPages();
+    renderPreview();
+  }
+
+  state.currentStep = step;
+  state.maxStepReached = Math.max(state.maxStepReached, step);
+
+  document.querySelectorAll('.step-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('step-' + step).classList.add('active');
+
+  updateStepperUI();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function updateStepperUI(){
+  document.querySelectorAll('.step-item').forEach(item => {
+    const s = parseInt(item.dataset.step, 10);
+    item.classList.toggle('active', s === state.currentStep);
+    item.classList.toggle('done', s < state.currentStep);
+    item.classList.toggle('reachable', s <= state.maxStepReached);
+  });
+}
+
+document.getElementById('stepper').addEventListener('click', (e) => {
+  const item = e.target.closest('.step-item');
+  if(!item) return;
+  const s = parseInt(item.dataset.step, 10);
+  if(s <= state.maxStepReached) goToStep(s);
+});
+
+function validateStep(step){
+  if(step === 1){
+    if(!state.bookSize.wIn || !state.bookSize.hIn){
+      toast('Please select a book size.', 'error');
+      return false;
+    }
+    return true;
+  }
+  if(step === 2){
+    if(state.selectedGames.length === 0){
+      toast('Please select at least one game.', 'error');
+      return false;
+    }
+    const needsWords = state.selectedGames.some(g => GameModules[g.id] && GameModules[g.id].needsWords);
+    if(needsWords && state.words.length === 0){
+      toast('No words generated yet — a default word list will be used for word-based games.', 'error');
+    }
+    return true;
+  }
+  return true;
+}
+
+/* =====================================================================
+   STEP 1 — BOOK SIZE
+===================================================================== */
+function renderSizeGrid(){
+  const grid = document.getElementById('size-grid');
+  grid.innerHTML = '';
+  BOOK_SIZES.forEach((size) => {
+    const card = document.createElement('div');
+    card.className = 'size-card' + (size.id === DEFAULT_BOOK_SIZE_ID ? ' selected' : '');
+    card.dataset.id = size.id;
+    card.innerHTML = `
+      <div class="check">✓</div>
+      <div class="size-page-icon"></div>
+      <div class="size-label">${size.label.replace('Custom Size','Custom')}</div>
+      <div class="size-dim">${size.w ? size.w + '" × ' + size.h + '"' : 'Set your own'}</div>
+    `;
+    card.addEventListener('click', () => selectSize(size.id));
+    grid.appendChild(card);
+  });
+  selectSize(DEFAULT_BOOK_SIZE_ID);
+}
+
+function selectSize(id){
+  document.querySelectorAll('.size-card').forEach(c => c.classList.toggle('selected', c.dataset.id === id));
+  const def = BOOK_SIZES.find(s => s.id === id);
+  const customFields = document.getElementById('custom-size-fields');
+
+  if(id === 'custom'){
+    customFields.classList.add('visible');
+    const w = parseFloat(document.getElementById('custom-width').value) || 8.5;
+    const h = parseFloat(document.getElementById('custom-height').value) || 11;
+    state.bookSize = { id, width: w + 'in', height: h + 'in', label: 'Custom', wIn: w, hIn: h };
+  } else {
+    customFields.classList.remove('visible');
+    state.bookSize = { id, width: def.w + 'in', height: def.h + 'in', label: def.label, wIn: def.w, hIn: def.h };
+  }
+  updateNumberStyle();
+}
+
+document.getElementById('custom-width').addEventListener('input', syncCustomSize);
+document.getElementById('custom-height').addEventListener('input', syncCustomSize);
+function syncCustomSize(){
+  if(state.bookSize.id !== 'custom') return;
+  const w = parseFloat(document.getElementById('custom-width').value) || 8.5;
+  const h = parseFloat(document.getElementById('custom-height').value) || 11;
+  state.bookSize.width = w + 'in';
+  state.bookSize.height = h + 'in';
+  state.bookSize.wIn = w;
+  state.bookSize.hIn = h;
+  updateNumberStyle();
+}
+
+function bookSizeMM(){
+  return { w: state.bookSize.wIn * MM_PER_IN, h: state.bookSize.hIn * MM_PER_IN };
+}
+
+/* =====================================================================
+   STEP 2 — NICHE & GAMES
+===================================================================== */
+document.getElementById('niche-input').addEventListener('input', (e) => state.niche = e.target.value);
+document.getElementById('apikey-input').addEventListener('input', (e) => state.apiKey = e.target.value);
+
+function renderGamesGrid(){
+  const grid = document.getElementById('games-grid');
+  grid.innerHTML = '';
+  GAMES.forEach(game => {
+    const card = document.createElement('div');
+    card.className = 'game-card';
+    card.id = 'game-card-' + game.id;
+    card.innerHTML = `
+      <div class="game-card-top">
+        <div>
+          <div class="game-icon">${game.icon}</div>
+          <div class="game-name" data-game-name="${game.id}">${gameName(game.id)}</div>
+        </div>
+        <label class="switch">
+          <input type="checkbox" onchange="toggleGame('${game.id}', this.checked)">
+          <span class="slider"></span>
+        </label>
+      </div>
+      <select class="game-difficulty-select" id="difficulty-${game.id}" onchange="setGameDifficulty('${game.id}', this.value)">
+        <option value="easy">Easy</option>
+        <option value="medium" selected>Medium</option>
+        <option value="hard">Hard</option>
+      </select>
+    `;
+    grid.appendChild(card);
+  });
+  updateSelectedGameCount();
+}
+
+function refreshGameNamesUI(){
+  document.querySelectorAll('[data-game-name]').forEach(el => {
+    el.textContent = gameName(el.dataset.gameName);
+  });
+}
+
+function setLanguage(lang){
+  state.language = lang;
+  refreshGameNamesUI();
+}
+
+function toggleGame(id, checked){
+  const card = document.getElementById('game-card-' + id);
+  card.classList.toggle('on', checked);
+  if(checked){
+    const difficulty = document.getElementById('difficulty-' + id).value;
+    state.selectedGames.push({ id, difficulty });
+  } else {
+    state.selectedGames = state.selectedGames.filter(g => g.id !== id);
+  }
+  updateSelectedGameCount();
+}
+
+// Selects every available game in one click. Crossword was intentionally
+// removed from GAMES, so it cannot be selected or exported.
+function selectAllGames(){
+  state.selectedGames = GAMES.map(game => ({
+    id: game.id,
+    difficulty: document.getElementById('difficulty-' + game.id).value
+  }));
+  GAMES.forEach(game => {
+    const card = document.getElementById('game-card-' + game.id);
+    card.classList.add('on');
+    card.querySelector('input[type=checkbox]').checked = true;
+  });
+  updateSelectedGameCount();
+}
+
+function clearAllGames(){
+  state.selectedGames = [];
+  document.querySelectorAll('.game-card').forEach(card => {
+    card.classList.remove('on');
+    card.querySelector('input[type=checkbox]').checked = false;
+  });
+  updateSelectedGameCount();
+}
+
+function updateSelectedGameCount(){
+  const count = state.selectedGames.length;
+  const target = document.getElementById('game-count');
+  if(target) target.textContent = `${count} of ${GAMES.length} games selected`;
+}
+
+function setGameDifficulty(id, difficulty){
+  const g = state.selectedGames.find(g => g.id === id);
+  if(g) g.difficulty = difficulty;
+}
+
+function applyGlobalDifficulty(difficulty){
+  GAMES.forEach(game => {
+    const select = document.getElementById('difficulty-' + game.id);
+    select.value = difficulty;
+  });
+  state.selectedGames.forEach(g => g.difficulty = difficulty);
+}
+
+function renderWordsChips(){
+  const box = document.getElementById('words-box');
+  box.innerHTML = '';
+  state.words.forEach((entry, i) => {
+    const chip = document.createElement('span');
+    chip.className = 'word-chip';
+    const textSpan = document.createElement('span');
+    textSpan.textContent = entry.clue ? `${entry.word} — ${entry.clue}` : entry.word;
+    textSpan.title = textSpan.textContent;
+    const removeBtn = document.createElement('button');
+    removeBtn.textContent = '✕';
+    removeBtn.onclick = () => { state.words.splice(i, 1); renderWordsChips(); };
+    chip.appendChild(textSpan);
+    chip.appendChild(removeBtn);
+    box.appendChild(chip);
+  });
+}
+
+async function generateWordsWithGemini(){
+  const niche = state.niche.trim();
+  const apiKey = state.apiKey.trim();
+
+  if(!niche){ toast('Please enter a niche/theme first.', 'error'); return; }
+  if(!apiKey){ toast('Please enter your Gemini API key.', 'error'); return; }
+
+  showLoading('Generating words with Gemini...');
+  try{
+    const langLabel = (LANGUAGES.find(l => l.code === state.language) || LANGUAGES[0]).label;
+    const prompt = `Generate ${TOTAL_DAYS} short vocabulary words IN ${langLabel} related to the theme "${niche}", each paired with a very short clue (3-6 words, also written in ${langLabel}) suitable for a kids' word search and crossword puzzle book. Both the word and the clue must be in ${langLabel}. Reply with ONLY one "WORD: clue" pair per line, no numbering, no markdown, no extra commentary. Example line (shown in English, but yours must be in ${langLabel}): "APPLE: A crunchy red fruit"`;
+    const url = `${GEMINI_ENDPOINT}?key=${encodeURIComponent(apiKey)}`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+    });
+
+    if(!res.ok){
+      throw new Error('Gemini API responded with status ' + res.status);
+    }
+
+    const data = await res.json();
+    const text = data && data.candidates && data.candidates[0] &&
+                 data.candidates[0].content && data.candidates[0].content.parts &&
+                 data.candidates[0].content.parts[0] ? data.candidates[0].content.parts[0].text : '';
+
+    const words = text
+      .split('\n')
+      .map(line => line.trim())
+      .filter(Boolean)
+      .map(line => {
+        const idx = line.indexOf(':');
+        const cleanWord = s => s.replace(/[^a-zA-ZÀ-ÖØ-öø-ÿ\s'-]/g, '').trim().toUpperCase();
+        if(idx === -1){
+          return { word: cleanWord(line), clue: `${niche} themed word` };
+        }
+        const word = cleanWord(line.slice(0, idx));
+        const clue = line.slice(idx + 1).trim();
+        return { word, clue };
+      })
+      .filter(o => o.word.length > 1);
+
+    if(words.length === 0) throw new Error('Gemini returned no usable words');
+
+    state.words = words;
+    renderWordsChips();
+    toast(`Generated ${words.length} words for "${niche}".`, 'success');
+  }catch(err){
+    console.error('Gemini word generation failed:', err);
+    state.words = (DEFAULT_FALLBACK_WORDS[state.language] || DEFAULT_FALLBACK_WORDS.en).slice();
+    renderWordsChips();
+    toast('Gemini request failed — using a default word list instead. (' + err.message + ')', 'error');
+  }finally{
+    hideLoading();
+  }
+}
+
+/* =====================================================================
+   STEP 3 — CUSTOMIZE
+===================================================================== */
+function setupPatternDropzone(){
+  const dz = document.getElementById('dropzone');
+  const input = document.getElementById('pattern-input');
+
+  dz.addEventListener('click', () => input.click());
+  input.addEventListener('change', () => handlePatternFiles(input.files));
+
+  ['dragenter','dragover'].forEach(evt => dz.addEventListener(evt, (e) => {
+    e.preventDefault(); dz.classList.add('dragover');
+  }));
+  ['dragleave','drop'].forEach(evt => dz.addEventListener(evt, (e) => {
+    e.preventDefault(); dz.classList.remove('dragover');
+  }));
+  dz.addEventListener('drop', (e) => {
+    handlePatternFiles(e.dataTransfer.files);
+  });
+}
+
+// Modification: accept a whole image collection instead of one PNG. Each
+// uploaded photo is normalized to a transparent PNG so jsPDF can render the
+// configured low opacity without relying on optional PDF transparency APIs.
+async function handlePatternFiles(fileList){
+  const files = Array.from(fileList || []);
+  if(!files.length) return;
+
+  const remainingSlots = Math.max(0, 48 - state.patterns.length);
+  const accepted = files.slice(0, remainingSlots);
+  if(files.length > remainingSlots) toast('A maximum of 48 background images is supported.', 'error');
+
+  showLoading(`Preparing ${accepted.length} background image${accepted.length === 1 ? '' : 's'}...`);
+  let added = 0;
+  try{
+    for(const file of accepted){
+      if(!['image/png', 'image/jpeg'].includes(file.type)){
+        toast(`${file.name}: use PNG or JPG.`, 'error');
+        continue;
+      }
+      if(file.size > 8 * 1024 * 1024){
+        toast(`${file.name}: file is larger than 8MB.`, 'error');
+        continue;
+      }
+      try{
+        state.patterns.push(await loadBackgroundFile(file));
+        added++;
+      }catch(err){
+        console.error('Background image failed to load:', file.name, err);
+        toast(`${file.name}: could not read image.`, 'error');
+      }
+    }
+    renderPatternPreview();
+    updateNumberStyle();
+    if(added) toast(`${added} background image${added === 1 ? '' : 's'} added.`, 'success');
+  }finally{
+    hideLoading();
+    document.getElementById('pattern-input').value = '';
+  }
+}
+
+function loadBackgroundFile(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const image = new Image();
+      image.onerror = reject;
+      image.onload = () => {
+        const entry = { name: file.name, image, width: image.naturalWidth, height: image.naturalHeight, dataUrl: '' };
+        entry.dataUrl = makeFadedBackground(entry, state.backgroundStyle.opacity);
+        resolve(entry);
+      };
+      image.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+function makeFadedBackground(entry, opacity){
+  const maxPx = VISUAL_STYLE.page.maxImagePixels;
+  const scale = Math.min(1, maxPx / Math.max(entry.width, entry.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.max(1, Math.round(entry.width * scale));
+  canvas.height = Math.max(1, Math.round(entry.height * scale));
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.globalAlpha = opacity;
+  ctx.drawImage(entry.image, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/png');
+}
+
+function renderPatternPreview(){
+  const wrap = document.getElementById('pattern-preview');
+  const thumbs = document.getElementById('pattern-thumbnails');
+  thumbs.innerHTML = '';
+  state.patterns.forEach((entry, index) => {
+    const item = document.createElement('div');
+    item.className = 'pattern-thumb';
+    const img = document.createElement('img');
+    img.src = entry.image.src;
+    img.alt = entry.name;
+    img.title = entry.name;
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.textContent = '×';
+    remove.title = `Remove ${entry.name}`;
+    remove.addEventListener('click', () => removePattern(index));
+    item.append(img, remove);
+    thumbs.appendChild(item);
+  });
+  document.getElementById('pattern-preview-name').textContent =
+    `${state.patterns.length} image${state.patterns.length === 1 ? '' : 's'} ready`;
+  wrap.classList.toggle('visible', state.patterns.length > 0);
+}
+
+function removePattern(index){
+  state.patterns.splice(index, 1);
+  renderPatternPreview();
+  updateNumberStyle();
+}
+
+function removeAllPatterns(){
+  state.patterns = [];
+  renderPatternPreview();
+  document.getElementById('pattern-input').value = '';
+  updateNumberStyle();
+}
+
+function updateBackgroundStyle(){
+  const opacityInput = document.getElementById('background-opacity');
+  const modeInput = document.getElementById('background-mode');
+  const opacity = opacityInput ? parseInt(opacityInput.value, 10) / 100 : VISUAL_STYLE.page.imageOpacity;
+  const mode = modeInput ? modeInput.value : VISUAL_STYLE.page.imageMode;
+  state.backgroundStyle = { opacity, mode };
+  if(opacityInput) document.getElementById('background-opacity-val').textContent = Math.round(opacity * 100) + '%';
+  // Rebuild cached transparent PNGs immediately when the strength slider moves.
+  state.patterns.forEach(entry => { entry.dataUrl = makeFadedBackground(entry, opacity); });
+  updateNumberStyle();
+}
+
+const FONT_PREVIEW_CSS = {
+  helvetica: 'Helvetica, Arial, sans-serif',
+  times: "'Times New Roman', Times, serif",
+  courier: "'Courier New', Courier, monospace"
+};
+
+function updateNumberStyle(){
+  const color = document.getElementById('number-color').value;
+  const fontSizePx = parseInt(document.getElementById('number-fontsize').value, 10);
+  const fontFamily = document.getElementById('number-fontfamily').value;
+
+  document.getElementById('fontsize-val').textContent = fontSizePx + 'px';
+  state.numberStyle = { color, fontSizePx, fontFamily };
+
+  // live mini preview, scaled to current book size aspect ratio
+  const w = state.bookSize.wIn, h = state.bookSize.hIn;
+  const page = document.getElementById('number-preview-page');
+  page.style.height = Math.round(140 * (h / w)) + 'px';
+
+  const num = document.getElementById('number-preview-num');
+  num.style.color = color;
+  num.style.fontFamily = FONT_PREVIEW_CSS[fontFamily] || FONT_PREVIEW_CSS.helvetica;
+  num.style.fontSize = fontSizePx + 'px';
+
+  let img = page.querySelector('img');
+  if(state.patterns.length){
+    if(!img){ img = document.createElement('img'); page.insertBefore(img, num); }
+    img.src = state.patterns[0].image.src;
+    img.style.opacity = state.backgroundStyle.opacity;
+    img.style.objectFit = state.backgroundStyle.mode === 'tile' ? 'contain' : 'cover';
+  } else if(img){
+    img.remove();
+  }
+}
+
+function updatePuzzleStyle(){
+  const color = document.getElementById('puzzle-number-color').value;
+  const fontSizePt = parseInt(document.getElementById('puzzle-fontsize').value, 10);
+  const fontFamily = document.getElementById('puzzle-fontfamily').value;
+  document.getElementById('puzzle-fontsize-val').textContent = fontSizePt + 'pt';
+  state.puzzleStyle = { color, fontSizePt, fontFamily };
+}
+
+/* =====================================================================
+   SHARED HELPERS FOR GAME MODULES
+===================================================================== */
+function shuffle(arr){
+  const a = arr.slice();
+  for(let i = a.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function activeWordPool(){
+  if(state.words.length) return state.words;
+  return DEFAULT_FALLBACK_WORDS[state.language] || DEFAULT_FALLBACK_WORDS.en;
+}
+
+// Returns `count` word entries, sampling without repeats first, then
+// cycling back through the pool if more are requested than are available.
+function pickWords(count){
+  const pool = shuffle(activeWordPool());
+  const picked = [];
+  while(picked.length < count){
+    picked.push(pool[picked.length % pool.length]);
+  }
+  return picked;
+}
+
+function hexToRgb(hex){
+  const m = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex || '#1a1a2e');
+  return m ? [parseInt(m[1],16), parseInt(m[2],16), parseInt(m[3],16)] : [26,26,46];
+}
+
+function drawFallbackPage(doc, title, message, wMM, hMM){
+  doc.setDrawColor(180); doc.setLineWidth(0.6);
+  doc.rect(8, 8, wMM - 16, hMM - 16);
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(60);
+  doc.text(title, wMM / 2, hMM / 2 - 6, { align: 'center' });
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(11); doc.setTextColor(120);
+  const lines = doc.splitTextToSize(message, wMM - 40);
+  doc.text(lines, wMM / 2, hMM / 2 + 4, { align: 'center' });
+}
+
+// Modification: every page is painted through this one background function.
+// The chosen entry already contains transparency, so puzzle lines remain crisp.
+function drawPageBackground(doc, entry, wMM, hMM){
+  const bg = VISUAL_STYLE.page.backgroundColor;
+  doc.setFillColor(bg[0], bg[1], bg[2]);
+  doc.rect(0, 0, wMM, hMM, 'F');
+  if(!entry || !entry.dataUrl) return;
+
+  try{
+    const ratio = entry.width / entry.height;
+    if(state.backgroundStyle.mode === 'tile'){
+      const tileW = VISUAL_STYLE.page.tileWidthMM;
+      const tileH = tileW / ratio;
+      for(let y = 0; y < hMM; y += tileH){
+        for(let x = 0; x < wMM; x += tileW){
+          doc.addImage(entry.dataUrl, 'PNG', x, y, tileW, tileH, undefined, 'FAST');
+        }
+      }
+    }else{
+      // Cover the page without stretching the source image.
+      let drawW = wMM;
+      let drawH = drawW / ratio;
+      if(drawH < hMM){ drawH = hMM; drawW = drawH * ratio; }
+      doc.addImage(entry.dataUrl, 'PNG', (wMM - drawW) / 2, (hMM - drawH) / 2, drawW, drawH, undefined, 'FAST');
+    }
+  }catch(err){
+    console.error('Background image failed to draw:', err);
+  }
+}
+
+function drawNumberPage(doc, day, style, wMM, hMM){
+  const [r,g,b] = hexToRgb(style.color);
+  doc.setFont(style.fontFamily || 'helvetica', 'bold');
+  doc.setTextColor(r, g, b);
+  doc.setFontSize(style.fontSizePx * 0.75); // CSS px -> pt
+  doc.text(String(day), wMM / 2, hMM / 2, { align: 'center', baseline: 'middle' });
+}
+
+// Every game page's title is drawn identically — same font, size, color and
+// position — so the book reads as one consistent series regardless of game.
+const PAGE_TITLE_FONT_SIZE = VISUAL_STYLE.fonts.titleSizePt;
+const PAGE_TITLE_Y = 16;      // mm from top, text baseline
+const PAGE_CONTENT_TOP = 28;  // mm from top where puzzle content area begins
+
+function drawGameTitle(doc, gameId, wMM){
+  doc.setFont(VISUAL_STYLE.fonts.family, 'bold');
+  doc.setFontSize(PAGE_TITLE_FONT_SIZE);
+  doc.setTextColor(...VISUAL_STYLE.colors.title);
+  doc.text(gameName(gameId), wMM / 2, PAGE_TITLE_Y, { align: 'center' });
+}
+
+// Modification: one sizing rule replaces every renderer's unrelated multiplier.
+// It aims for exactly the Step 3 target (18pt by default) and only shrinks when
+// the physical cell cannot contain the value. Main values are always bold.
+function puzzleValueFontSize(cellSizeMM, value = '', kind = 'main'){
+  const valueLength = Math.max(1, String(value).length);
+  const cellSizePt = cellSizeMM * 72 / MM_PER_IN;
+  const desired = kind === 'clue'
+    ? Math.min(state.puzzleStyle.fontSizePt, VISUAL_STYLE.fonts.clueTargetSizePt)
+    : state.puzzleStyle.fontSizePt;
+  const heightLimit = cellSizePt * (kind === 'clue' ? 0.50 : 0.68);
+  const widthFactor = kind === 'clue' ? 0.54 : 0.62;
+  const widthLimit = cellSizePt * (kind === 'clue' ? 0.82 : 0.78) / (valueLength * widthFactor);
+  const fitLimit = Math.max(5.5, Math.min(heightLimit, widthLimit));
+  const minimum = kind === 'clue' ? 7.5 : VISUAL_STYLE.fonts.puzzleMinimumSizePt;
+  const safeMinimum = Math.min(minimum, fitLimit);
+  return Math.max(safeMinimum, Math.min(desired, fitLimit));
+}
+
+function applyPuzzleValueStyle(doc, cellSizeMM, value = '', kind = 'main', colorOverride = null){
+  const [r, g, b] = colorOverride || hexToRgb(state.puzzleStyle.color);
+  doc.setFont(state.puzzleStyle.fontFamily || VISUAL_STYLE.fonts.family, kind === 'main' ? 'bold' : 'bold');
+  doc.setFontSize(puzzleValueFontSize(cellSizeMM, value, kind));
+  doc.setTextColor(r, g, b);
+}
+
+function relationFontSize(availableMM, targetPt = VISUAL_STYLE.fonts.relationTargetSizePt){
+  const availablePt = availableMM * 72 / MM_PER_IN;
+  return Math.max(9, Math.min(targetPt, availablePt * 0.9));
+}
+
+function applyRelationStyle(doc, availableMM, targetPt = VISUAL_STYLE.fonts.relationTargetSizePt){
+  doc.setFont(state.puzzleStyle.fontFamily || VISUAL_STYLE.fonts.family, 'bold');
+  doc.setFontSize(relationFontSize(availableMM, targetPt));
+  doc.setTextColor(...hexToRgb(state.puzzleStyle.color));
+}
+
+function gridLineWidth(widthMM){
+  return widthMM * VISUAL_STYLE.borders.scale;
+}
+
+/* =====================================================================================
+   GAME MODULES — adapted from the standalone generators in /wordsearch, /sudoku,
+   /mazes and /cross-word. Each module exposes:
+     generate(difficulty)                 -> pure puzzle data (no DOM/page-size deps)
+     draw(doc, data, wMM, hMM)            -> draws that data as vector content
+                                              onto the current page of a jsPDF doc
+   Puzzle-only pages are produced (no auto-generated answer-key pages), matching
+   the wizard's 1, game, 2, game... page order.
+===================================================================================== */
+
+/* ---------- Word Search (adapted from /word-search/index.html) ---------- */
+const WS_DIRS = [{r:0,c:1},{r:1,c:0},{r:-1,c:0},{r:1,c:1},{r:-1,c:1},{r:0,c:-1},{r:1,c:-1},{r:-1,c:-1}];
+const WS_DIFFICULTY = {
+  easy:   { size: 10, count: 8 },
+  medium: { size: 13, count: 10 },
+  hard:   { size: 16, count: 12 }
+};
+
+function wsCreatePuzzle(wordList, width, height, dirs){
+  const grid = Array(height).fill(null).map(() => Array(width).fill(null));
+  const solution = Array(height).fill(false).map(() => Array(width).fill(false));
+  const placed = [];
+
+  const toPlace = wordList
+    .map(w => ({ original: w, clean: w.replace(/[^A-Z]/g, '') }))
+    .filter(w => w.clean.length > 0 && w.clean.length <= Math.max(width, height))
+    .sort((a, b) => b.clean.length - a.clean.length);
+
+  for(const wObj of toPlace){
+    let fitted = false, tries = 0;
+    while(!fitted && tries < 200){
+      const dir = dirs[Math.floor(Math.random() * dirs.length)];
+      const r = Math.floor(Math.random() * height);
+      const c = Math.floor(Math.random() * width);
+      if(wsCanPlace(grid, wObj.clean, r, c, dir)){
+        wsPlace(grid, solution, wObj.clean, r, c, dir);
+        placed.push({ r, c, dir, len: wObj.clean.length, word: wObj.original });
+        fitted = true;
+      }
+      tries++;
+    }
+  }
+
+  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  for(let r = 0; r < height; r++){
+    for(let c = 0; c < width; c++){
+      if(grid[r][c] === null) grid[r][c] = chars[Math.floor(Math.random() * chars.length)];
+    }
+  }
+  return { grid, solution, placedWords: placed };
+}
+function wsCanPlace(grid, word, r, c, d){
+  for(let i = 0; i < word.length; i++){
+    const nr = r + i * d.r, nc = c + i * d.c;
+    if(nr < 0 || nr >= grid.length || nc < 0 || nc >= grid[0].length) return false;
+    if(grid[nr][nc] !== null && grid[nr][nc] !== word[i]) return false;
+  }
+  return true;
+}
+function wsPlace(grid, sol, word, r, c, d){
+  for(let i = 0; i < word.length; i++){
+    const nr = r + i * d.r, nc = c + i * d.c;
+    grid[nr][nc] = word[i];
+    sol[nr][nc] = true;
+  }
+}
+function wsDrawPage(doc, p, wMM, hMM){
+  const margin = 15;
+  const availW = wMM - margin * 2;
+  const cellSize = availW / p.grid[0].length;
+  const startY = PAGE_CONTENT_TOP;
+
+  drawGameTitle(doc, 'wordsearch', wMM);
+
+  applyPuzzleValueStyle(doc, cellSize, 'W');
+  doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+  doc.setLineWidth(gridLineWidth(VISUAL_STYLE.borders.thinMM));
+
+  for(let r = 0; r < p.grid.length; r++){
+    for(let c = 0; c < p.grid[0].length; c++){
+      const x = margin + c * cellSize, y = startY + r * cellSize;
+      doc.rect(x, y, cellSize, cellSize);
+      doc.text(p.grid[r][c], x + cellSize/2, y + cellSize/1.4, { align: 'center' });
+    }
+  }
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(11);
+  const listY = startY + p.grid.length * cellSize + 12;
+  const words = p.placedWords.map(o => o.word).sort();
+  const cols = 3;
+  const colW = availW / cols;
+  const lineHeight = 5.5;
+
+  words.forEach((w, idx) => {
+    const c = idx % cols, r = Math.floor(idx / cols);
+    const xPos = margin + c * colW + colW / 2;
+    const yPos = listY + r * (lineHeight + 2);
+    if(yPos < hMM - margin) doc.text(w, xPos, yPos, { align: 'center' });
+  });
+}
+
+/* ---------- Sudoku (adapted from /sudoku/index.html) ---------- */
+const SUDOKU_CONFIG = { N: 9, boxH: 3, boxW: 3, holes: { easy: 30, medium: 45, hard: 52 } };
+
+function suIsSafe(board, row, col, num, N, boxH, boxW){
+  for(let x = 0; x < N; x++){
+    if(board[row][x] === num || board[x][col] === num) return false;
+  }
+  const startRow = row - row % boxH, startCol = col - col % boxW;
+  for(let i = 0; i < boxH; i++){
+    for(let j = 0; j < boxW; j++){
+      if(board[i + startRow][j + startCol] === num) return false;
+    }
+  }
+  return true;
+}
+function suSolveBoard(board, N, boxH, boxW){
+  for(let row = 0; row < N; row++){
+    for(let col = 0; col < N; col++){
+      if(board[row][col] === 0){
+        const nums = Array.from({length: N}, (_, i) => i + 1).sort(() => Math.random() - 0.5);
+        for(const num of nums){
+          if(suIsSafe(board, row, col, num, N, boxH, boxW)){
+            board[row][col] = num;
+            if(suSolveBoard(board, N, boxH, boxW)) return true;
+            board[row][col] = 0;
+          }
+        }
+        return false;
+      }
+    }
+  }
+  return true;
+}
+function suCreatePuzzle(difficulty){
+  const conf = SUDOKU_CONFIG;
+  const N = conf.N;
+  const grid = Array.from({length: N}, () => Array(N).fill(0));
+  grid[0] = Array.from({length: N}, (_, i) => i + 1).sort(() => Math.random() - 0.5);
+  suSolveBoard(grid, N, conf.boxH, conf.boxW);
+
+  const puzzle = grid.map(row => [...row]);
+  let holes = conf.holes[difficulty] || conf.holes.medium;
+  while(holes > 0){
+    const r = Math.floor(Math.random() * N), c = Math.floor(Math.random() * N);
+    if(puzzle[r][c] !== 0){ puzzle[r][c] = 0; holes--; }
+  }
+  return { puzzle, conf };
+}
+function suDrawPage(doc, data, wMM, hMM){
+  const { puzzle, conf } = data;
+  const margin = 20;
+  const availH = hMM - PAGE_CONTENT_TOP - margin;
+  const cellSize = Math.min(wMM - margin*2, availH) / conf.N;
+  const gridW = cellSize * conf.N, gridH = cellSize * conf.N;
+  const startX = (wMM - gridW) / 2;
+  const startY = PAGE_CONTENT_TOP + (availH - gridH) / 2;
+
+  drawGameTitle(doc, 'sudoku', wMM);
+
+  applyPuzzleValueStyle(doc, cellSize, '8');
+  for(let r = 0; r < conf.N; r++){
+    for(let c = 0; c < conf.N; c++){
+      const val = puzzle[r][c];
+      if(val !== 0){
+        const x = startX + c*cellSize, y = startY + r*cellSize;
+        doc.text(String(val), x + cellSize/2, y + cellSize/2 + cellSize*0.06, { align: 'center', baseline: 'middle' });
+      }
+    }
+  }
+
+  doc.setLineWidth(gridLineWidth(0.15)); doc.setDrawColor(...VISUAL_STYLE.colors.gridLight);
+  for(let r = 0; r <= conf.N; r++) doc.line(startX, startY + r*cellSize, startX + gridW, startY + r*cellSize);
+  for(let c = 0; c <= conf.N; c++) doc.line(startX + c*cellSize, startY, startX + c*cellSize, startY + gridH);
+
+  doc.setLineWidth(gridLineWidth(0.8)); doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+  for(let r = 0; r <= conf.N; r += conf.boxH) doc.line(startX, startY + r*cellSize, startX + gridW, startY + r*cellSize);
+  for(let c = 0; c <= conf.N; c += conf.boxW) doc.line(startX + c*cellSize, startY, startX + c*cellSize, startY + gridH);
+}
+
+/* ---------- Maze (adapted from /mazes/index.html) ---------- */
+const MAZE_DIFFICULTY = { easy: 15, medium: 25, hard: 35 };
+const MAZE_SHAPES = ['square','circle','diamond','heart','star','triangle','hourglass','donut','cross','pacman'];
+
+class KdpMazeCell{
+  constructor(c, r){ this.c = c; this.r = r; this.walls = [true,true,true,true]; this.visited = false; this.active = true; }
+}
+class KdpMaze{
+  constructor(cols, rows, shape){
+    this.cols = cols; this.rows = rows; this.grid = [];
+    this.start = null; this.end = null; this.path = [];
+    for(let r = 0; r < rows; r++){
+      for(let c = 0; c < cols; c++){
+        const cell = new KdpMazeCell(c, r);
+        cell.active = this.checkShape(c, r, shape);
+        this.grid.push(cell);
+      }
+    }
+  }
+  checkShape(c, r, shape){
+    const nx = (c / (this.cols - 1)) * 2 - 1;
+    const ny = (r / (this.rows - 1)) * 2 - 1;
+    switch(shape){
+      case 'square': return true;
+      case 'circle': return (nx*nx + ny*ny <= 1.0);
+      case 'diamond': return (Math.abs(nx) + Math.abs(ny) <= 1.0);
+      case 'heart': {
+        const hy = -ny, hx = nx;
+        const part = Math.pow(hx*hx, 1/3);
+        return (hx*hx + Math.pow(hy - 0.5*part, 2) <= 1.2);
+      }
+      case 'star': {
+        const dist = Math.sqrt(nx*nx + ny*ny);
+        const angle = Math.atan2(ny, nx);
+        const threshold = 0.5 + 0.4 * Math.cos(4*angle);
+        return dist <= threshold;
+      }
+      case 'triangle': return ny >= Math.abs(nx) - 0.8;
+      case 'hourglass': return (Math.abs(nx) <= Math.abs(ny) + 0.2) || (Math.abs(ny) > 0.8);
+      case 'donut': { const d = Math.sqrt(nx*nx + ny*ny); return (d <= 1.0 && d >= 0.4); }
+      case 'cross': return (Math.abs(nx) < 0.35 || Math.abs(ny) < 0.35);
+      case 'pacman': {
+        const pd = Math.sqrt(nx*nx + ny*ny);
+        if(pd > 1.0) return false;
+        const pang = Math.atan2(ny, nx);
+        return !(Math.abs(pang) < 0.6 && nx > 0);
+      }
+      default: return true;
+    }
+  }
+  index(c, r){ if(c < 0 || r < 0 || c >= this.cols || r >= this.rows) return -1; return c + r*this.cols; }
+  generate(){
+    const active = this.grid.filter(c => c.active);
+    if(active.length === 0) return;
+    this.start = active[0];
+    this.end = active[active.length - 1];
+    const stack = [this.start];
+    this.start.visited = true;
+    while(stack.length > 0){
+      const curr = stack[stack.length - 1];
+      const neighbors = this.getNeighbors(curr);
+      if(neighbors.length > 0){
+        const next = neighbors[Math.floor(Math.random() * neighbors.length)];
+        this.removeWalls(curr, next);
+        next.visited = true;
+        stack.push(next);
+      } else stack.pop();
+    }
+  }
+  solve(){
+    const queue = [{ cell: this.start, path: [this.start] }];
+    const visited = new Set([this.start]);
+    while(queue.length > 0){
+      const { cell, path } = queue.shift();
+      if(cell === this.end){ this.path = path; return; }
+      for(const n of this.getConnectedNeighbors(cell)){
+        if(!visited.has(n)){ visited.add(n); queue.push({ cell: n, path: [...path, n] }); }
+      }
+    }
+  }
+  getNeighbors(cell){
+    const res = [];
+    [[0,-1],[1,0],[0,1],[-1,0]].forEach(d => {
+      const idx = this.index(cell.c + d[0], cell.r + d[1]);
+      if(idx !== -1){ const n = this.grid[idx]; if(n.active && !n.visited) res.push(n); }
+    });
+    return res;
+  }
+  getConnectedNeighbors(cell){
+    const res = [];
+    const t = this.grid[this.index(cell.c, cell.r - 1)]; if(t && t.active && !cell.walls[0]) res.push(t);
+    const r = this.grid[this.index(cell.c + 1, cell.r)]; if(r && r.active && !cell.walls[1]) res.push(r);
+    const b = this.grid[this.index(cell.c, cell.r + 1)]; if(b && b.active && !cell.walls[2]) res.push(b);
+    const l = this.grid[this.index(cell.c - 1, cell.r)]; if(l && l.active && !cell.walls[3]) res.push(l);
+    return res;
+  }
+  removeWalls(a, b){
+    const x = a.c - b.c;
+    if(x === 1){ a.walls[3] = false; b.walls[1] = false; }
+    else if(x === -1){ a.walls[1] = false; b.walls[3] = false; }
+    const y = a.r - b.r;
+    if(y === 1){ a.walls[0] = false; b.walls[2] = false; }
+    else if(y === -1){ a.walls[2] = false; b.walls[0] = false; }
+  }
+}
+
+function mzDrawMarker(doc, cell, originX, originY, size, text, color){
+  const cx = originX + cell.c*size + size/2;
+  const cy = originY + cell.r*size + size/2;
+  const r = size * 0.35;
+  doc.setFillColor(color[0], color[1], color[2]);
+  doc.circle(cx, cy, r, 'F');
+  doc.setDrawColor(...VISUAL_STYLE.colors.grid); doc.setLineWidth(gridLineWidth(0.1));
+  doc.circle(cx, cy, r, 'S');
+  applyPuzzleValueStyle(doc, size, text, 'main', [255,255,255]);
+  doc.text(text, cx, cy + r*0.4, { align: 'center' });
+}
+
+function mzDrawPage(doc, data, wMM, hMM){
+  const { maze, shape } = data;
+  const margin = 15;
+
+  drawGameTitle(doc, 'maze', wMM);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(90);
+  doc.text(`${t('shape')}: ${shape.toUpperCase()}`, wMM/2, PAGE_TITLE_Y + 6, { align: 'center' });
+
+  const maxWidth = wMM - margin*2;
+  const maxHeight = hMM - PAGE_CONTENT_TOP - margin;
+  const cellSize = Math.min(maxWidth / maze.cols, maxHeight / maze.rows);
+  const totalW = maze.cols * cellSize, totalH = maze.rows * cellSize;
+  const startX = (wMM - totalW) / 2;
+  const startY = PAGE_CONTENT_TOP;
+
+  doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+  doc.setLineWidth(gridLineWidth(0.3));
+  doc.setLineCap('square');
+  for(const cell of maze.grid){
+    if(!cell.active) continue;
+    const x = startX + cell.c*cellSize, y = startY + cell.r*cellSize;
+    if(cell.walls[0]) doc.line(x, y, x + cellSize, y);
+    if(cell.walls[1]) doc.line(x + cellSize, y, x + cellSize, y + cellSize);
+    if(cell.walls[2]) doc.line(x + cellSize, y + cellSize, x, y + cellSize);
+    if(cell.walls[3]) doc.line(x, y + cellSize, x, y);
+  }
+
+  if(maze.start && maze.end){
+    mzDrawMarker(doc, maze.start, startX, startY, cellSize, 'S', [0,200,0]);
+    mzDrawMarker(doc, maze.end, startX, startY, cellSize, 'E', [200,0,0]);
+  }
+}
+
+/* ---------- Crossword (adapted from /cross-word/index.html) ---------- */
+const CROSSWORD_MAX_WORDS = { easy: 6, medium: 10, hard: 14 };
+
+class KdpCrosswordGen{
+  constructor(wordList){
+    this.wordList = wordList.sort((a, b) => b.w.length - a.w.length);
+    this.gridSize = 30;
+    this.grid = Array(this.gridSize).fill().map(() => Array(this.gridSize).fill(null));
+    this.placedWords = [];
+  }
+  generate(){
+    if(this.wordList.length === 0) return null;
+    const center = Math.floor(this.gridSize / 2);
+    this.placeWord(this.wordList[0], center, center - Math.floor(this.wordList[0].w.length/2), 'across');
+    for(let i = 1; i < this.wordList.length; i++) this.tryPlace(this.wordList[i]);
+    return this.crop();
+  }
+  tryPlace(wordObj){
+    const word = wordObj.w;
+    const currentPlaced = [...this.placedWords].sort(() => 0.5 - Math.random());
+    for(const placed of currentPlaced){
+      for(let j = 0; j < word.length; j++){
+        const letter = word[j];
+        for(let k = 0; k < placed.word.length; k++){
+          if(placed.word[k] === letter){
+            const dir = placed.dir === 'across' ? 'down' : 'across';
+            const r = placed.row + (placed.dir === 'down' ? k : 0) - (dir === 'down' ? j : 0);
+            const c = placed.col + (placed.dir === 'across' ? k : 0) - (dir === 'across' ? j : 0);
+            if(this.canPlace(word, r, c, dir)){
+              this.placeWord(wordObj, r, c, dir);
+              return true;
+            }
+          }
+        }
+      }
+    }
+    return false;
+  }
+  canPlace(word, r, c, dir){
+    if(r < 0 || c < 0 || r + (dir==='down'?word.length:0) >= this.gridSize || c + (dir==='across'?word.length:0) >= this.gridSize) return false;
+    for(let i = 0; i < word.length; i++){
+      const cr = r + (dir==='down'?i:0);
+      const cc = c + (dir==='across'?i:0);
+      const cell = this.grid[cr][cc];
+      if(cell !== null && cell !== word[i]) return false;
+      if(cell === null){
+        if(dir === 'across'){
+          if(this.grid[cr-1]?.[cc] || this.grid[cr+1]?.[cc]) return false;
+          if(i===0 && this.grid[cr]?.[cc-1]) return false;
+          if(i===word.length-1 && this.grid[cr]?.[cc+1]) return false;
+        } else {
+          if(this.grid[cr]?.[cc-1] || this.grid[cr]?.[cc+1]) return false;
+          if(i===0 && this.grid[cr-1]?.[cc]) return false;
+          if(i===word.length-1 && this.grid[cr+1]?.[cc]) return false;
+        }
+      }
+    }
+    return true;
+  }
+  placeWord(wordObj, r, c, dir){
+    for(let i = 0; i < wordObj.w.length; i++){
+      this.grid[r + (dir==='down'?i:0)][c + (dir==='across'?i:0)] = wordObj.w[i];
+    }
+    this.placedWords.push({ word: wordObj.w, clue: wordObj.c, row: r, col: c, dir });
+  }
+  crop(){
+    if(this.placedWords.length === 0) return null;
+    this.placedWords.sort((a,b) => (a.row - b.row) || (a.col - b.col));
+    let num = 1; const map = {};
+    this.placedWords.forEach(p => { const k = `${p.row},${p.col}`; if(!map[k]) map[k] = num++; p.number = map[k]; });
+    let minR=99, maxR=0, minC=99, maxC=0;
+    this.placedWords.forEach(p => {
+      minR = Math.min(minR, p.row); minC = Math.min(minC, p.col);
+      maxR = Math.max(maxR, p.dir==='down' ? p.row+p.word.length-1 : p.row);
+      maxC = Math.max(maxC, p.dir==='across' ? p.col+p.word.length-1 : p.col);
+    });
+    const h = maxR-minR+1, w = maxC-minC+1;
+    const finalGrid = Array(h).fill().map(() => Array(w).fill(null));
+    this.placedWords.forEach(p => {
+      p.row -= minR; p.col -= minC;
+      for(let i = 0; i < p.word.length; i++) finalGrid[p.row + (p.dir==='down'?i:0)][p.col + (p.dir==='across'?i:0)] = p.word[i];
+    });
+    return { grid: finalGrid, words: this.placedWords, w, h };
+  }
+}
+
+function cwGenerate(difficulty){
+  const maxWords = CROSSWORD_MAX_WORDS[difficulty] || CROSSWORD_MAX_WORDS.medium;
+  const source = pickWords(Math.max(maxWords, 6));
+  const wordObjs = source
+    .map(w => ({ w: normalizeForGrid(w.word), c: w.clue || `A word related to ${state.niche || 'the theme'}` }))
+    .filter(w => w.w.length >= 2);
+
+  let gen = new KdpCrosswordGen(wordObjs);
+  let puzzle = gen.generate();
+  if(!puzzle || puzzle.words.length < Math.min(3, wordObjs.length)){
+    gen = new KdpCrosswordGen(wordObjs);
+    puzzle = gen.generate();
+  }
+  return puzzle;
+}
+
+function cwDrawPage(doc, data, wMM, hMM){
+  if(!data || data.words.length === 0){
+    drawFallbackPage(doc, gameName('crossword'), 'Not enough words were available to build a crossword grid.', wMM, hMM);
+    return;
+  }
+  const margin = wMM < 160 ? 12 : 18;
+  const safeW = wMM - margin*2;
+
+  drawGameTitle(doc, 'crossword', wMM);
+
+  const gridY = PAGE_CONTENT_TOP;
+  const maxGridH = hMM * 0.5;
+  let cellS = safeW / data.w;
+  if(cellS * data.h > maxGridH) cellS = maxGridH / data.h;
+  const maxCell = wMM < 160 ? 14 : 18;
+  if(cellS > maxCell) cellS = maxCell;
+
+  const totalGridW = data.w * cellS;
+  const startX = margin + (safeW - totalGridW) / 2;
+
+  doc.setLineWidth(gridLineWidth(0.35)); doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+  for(let r = 0; r < data.h; r++){
+    for(let c = 0; c < data.w; c++){
+      const ch = data.grid[r][c];
+      if(ch){
+        const x = startX + c*cellS, y = gridY + r*cellS;
+        doc.setFillColor(255);
+        doc.rect(x, y, cellS, cellS, 'FD');
+        const wS = data.words.find(w => w.row===r && w.col===c);
+        if(wS){
+          applyPuzzleValueStyle(doc, cellS, wS.number, 'clue');
+          doc.text(String(wS.number), x + 1, y + cellS*0.35);
+        }
+      }
+    }
+  }
+
+  let yStart = gridY + data.h*cellS + 10;
+  const colWidth = safeW/2 - 5;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(wMM < 160 ? 11 : 13);
+  doc.text(t('across'), margin, yStart);
+  doc.text(t('down'), margin + colWidth + 10, yStart);
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(wMM < 160 ? 9 : 10);
+  yStart += 5.5;
+  let yA = yStart, yD = yStart;
+  const lineHeight = wMM < 160 ? 4 : 4.6;
+
+  [...data.words].sort((a,b) => a.number - b.number).forEach(w => {
+    const text = `${w.number}. ${w.clue}`;
+    const lines = doc.splitTextToSize(text, colWidth);
+    if(w.dir === 'across'){
+      if(yA + lines.length*lineHeight > hMM - margin) return;
+      doc.text(lines, margin, yA); yA += lines.length*lineHeight;
+    } else {
+      if(yD + lines.length*lineHeight > hMM - margin) return;
+      doc.text(lines, margin + colWidth + 10, yD); yD += lines.length*lineHeight;
+    }
+  });
+}
+
+/* ---------- Anagram (adapted from /anagram/index.html) ---------- */
+const ANA_DIFFICULTY = {
+  easy:   { count: 8,  mode: 'keepEnds' },
+  medium: { count: 12, mode: 'keepEnds' },
+  hard:   { count: 16, mode: 'full' }
+};
+
+function anaShuffleString(str){
+  const arr = str.split('');
+  for(let i = arr.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr.join('');
+}
+
+function anaScramble(word, mode){
+  if(word.length < 4){
+    let s = anaShuffleString(word);
+    let tries = 0;
+    while(s === word && word.length > 1 && tries < 20){ s = anaShuffleString(word); tries++; }
+    return s;
+  }
+
+  if(mode === 'keepEnds'){
+    const first = word[0];
+    const last = word[word.length - 1];
+    const middle = word.slice(1, -1);
+    let shuffled = anaShuffleString(middle);
+    let tries = 0;
+    while(shuffled === middle && middle.length > 1 && tries < 20){
+      shuffled = anaShuffleString(middle);
+      tries++;
+    }
+    return first + shuffled + last;
+  }
+
+  let shuffled = anaShuffleString(word);
+  let tries = 0;
+  while(shuffled === word && word.length > 1 && tries < 20){
+    shuffled = anaShuffleString(word);
+    tries++;
+  }
+  return shuffled;
+}
+
+function anaGenerate(difficulty){
+  const cfg = ANA_DIFFICULTY[difficulty] || ANA_DIFFICULTY.medium;
+  const items = pickWords(cfg.count)
+    .map(entry => {
+      const clean = normalizeForGrid(entry.word);
+      return { original: clean, scrambled: anaScramble(clean, cfg.mode) };
+    })
+    .filter(it => it.original.length > 0);
+  return { items };
+}
+
+function anaDrawPage(doc, data, wMM, hMM){
+  const { items } = data;
+  const margin = wMM < 160 ? 12 : 16;
+
+  drawGameTitle(doc, 'anagram', wMM);
+
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(90);
+  doc.text(t('ana_instruction'), wMM / 2, PAGE_TITLE_Y + 6, { align: 'center' });
+
+  const startY = PAGE_CONTENT_TOP + 6;
+  const bottomMargin = wMM < 160 ? 14 : 18;
+  const availableH = hMM - startY - bottomMargin;
+  const rowHeight = Math.min(13, availableH / Math.max(items.length, 1));
+  const boxSize = Math.max(4, Math.min(6, rowHeight * 0.46));
+
+  const contentWidth = wMM - margin * 2;
+  const textWidth = contentWidth * 0.35;
+  const boxesStartX = margin + textWidth + 5;
+
+  items.forEach((item, idx) => {
+    const currentY = startY + idx * rowHeight;
+
+    doc.setFont('courier', 'bold');
+    doc.setFontSize(12);
+    doc.setTextColor(0);
+    doc.text(item.scrambled, margin + textWidth, currentY + boxSize / 2 + 1, { align: 'right' });
+
+    doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+    doc.setLineWidth(gridLineWidth(0.3));
+    doc.setFillColor(255, 255, 255);
+
+    for(let i = 0; i < item.original.length; i++){
+      const bx = boxesStartX + i * boxSize;
+      const by = currentY;
+      if(bx + boxSize < wMM - margin){
+        doc.rect(bx, by, boxSize, boxSize, 'FD');
+      }
+    }
+  });
+}
+
+/* ---------- Number Search (adapted from /number-search/index.html) ---------- */
+const NSR_DIRS_4 = [[-1,0],[1,0],[0,-1],[0,1]];
+const NSR_DIRS_8 = [[-1,-1],[-1,0],[-1,1],[0,-1],[0,1],[1,-1],[1,0],[1,1]];
+
+const NSR_DIFFICULTY = {
+  easy:   { size: 12, count: 10, digits: 4, dirs: NSR_DIRS_4 },
+  medium: { size: 15, count: 14, digits: 5, dirs: NSR_DIRS_8 },
+  hard:   { size: 18, count: 18, digits: 6, dirs: NSR_DIRS_8 }
+};
+
+function nsrGenerateNumbers(count, digits){
+  const min = Math.pow(10, digits - 1);
+  const max = Math.pow(10, digits) - 1;
+  const range = max - min + 1;
+  const need = Math.min(count, range);
+  const set = new Set();
+  let guard = 0;
+  while(set.size < need && guard < need * 50){
+    const num = Math.floor(Math.random() * range) + min;
+    set.add(String(num));
+    guard++;
+  }
+  return Array.from(set);
+}
+
+function nsrBuildGrid(numbers, size, dirs){
+  const grid = Array.from({ length: size }, () => Array(size).fill(null));
+  const placed = [];
+  const sorted = [...numbers].sort((a, b) => b.length - a.length);
+
+  for(const num of sorted){
+    if(num.length > size) continue;
+    let done = false, tries = 0;
+    while(!done && tries < 500){
+      const d = dirs[Math.floor(Math.random() * dirs.length)];
+      const r = Math.floor(Math.random() * size);
+      const c = Math.floor(Math.random() * size);
+
+      let fit = true;
+      for(let k = 0; k < num.length; k++){
+        const nr = r + d[0] * k, nc = c + d[1] * k;
+        if(nr < 0 || nr >= size || nc < 0 || nc >= size ||
+           (grid[nr][nc] !== null && grid[nr][nc] !== num[k])){
+          fit = false; break;
+        }
+      }
+
+      if(fit){
+        for(let k = 0; k < num.length; k++) grid[r + d[0]*k][c + d[1]*k] = num[k];
+        placed.push(num);
+        done = true;
+      }
+      tries++;
+    }
+  }
+
+  for(let r = 0; r < size; r++){
+    for(let c = 0; c < size; c++){
+      if(grid[r][c] === null) grid[r][c] = String(Math.floor(Math.random() * 10));
+    }
+  }
+
+  return { grid, placed };
+}
+
+function nsrGenerate(difficulty){
+  const cfg = NSR_DIFFICULTY[difficulty] || NSR_DIFFICULTY.medium;
+  const numbers = nsrGenerateNumbers(cfg.count, cfg.digits);
+  const { grid, placed } = nsrBuildGrid(numbers, cfg.size, cfg.dirs);
+  return { grid, size: cfg.size, placed };
+}
+
+function nsrDrawGrid(doc, grid, size, x, y, cellSize){
+  doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+  doc.setLineWidth(gridLineWidth(0.35));
+  applyPuzzleValueStyle(doc, cellSize, '8');
+
+  for(let r = 0; r < size; r++){
+    for(let c = 0; c < size; c++){
+      const cx = x + c * cellSize, cy = y + r * cellSize;
+      doc.rect(cx, cy, cellSize, cellSize);
+      doc.text(grid[r][c], cx + cellSize / 2, cy + cellSize / 1.4, { align: 'center' });
+    }
+  }
+}
+
+function nsrDrawList(doc, list, x, y, w){
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.setTextColor(60);
+  const cols = 4;
+  const cw = w / cols;
+  list.forEach((n, i) => {
+    doc.text(n, x + (i % cols) * cw + cw / 2, y + Math.floor(i / cols) * 6, { align: 'center' });
+  });
+}
+
+function nsrDrawPage(doc, data, wMM, hMM){
+  const { grid, size, placed } = data;
+  const margin = wMM < 160 ? 12.7 : 16;
+  const startY = PAGE_CONTENT_TOP;
+
+  drawGameTitle(doc, 'numbersearch', wMM);
+
+  const listRows = Math.ceil(placed.length / 4);
+  const listH = listRows * 6 + 10;
+
+  const maxGridW = wMM - margin * 2;
+  const maxGridH = hMM - startY - margin - listH;
+  const cellSize = Math.min(maxGridW / size, maxGridH / size);
+  const gridSpan = cellSize * size;
+  const startX = (wMM - gridSpan) / 2;
+
+  nsrDrawGrid(doc, grid, size, startX, startY, cellSize);
+
+  const listY = startY + gridSpan + 10;
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(0);
+  doc.text(t('nsr_find'), margin, listY);
+  nsrDrawList(doc, placed, margin, listY + 6, maxGridW);
+}
+
+/* ---------- Math Matrix (adapted from /math-matix/index.html) ---------- */
+const MMX_DIFFICULTY = { easy: 9, medium: 20, hard: 50 };
+
+function mmxRandomInt(min, max){
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function mmxGetOperator(level){
+  const ops = ['+', '-'];
+  if(level !== 'easy') ops.push('x');
+  if(level === 'hard') ops.push('÷');
+  return ops[Math.floor(Math.random() * ops.length)];
+}
+
+function mmxApplyOp(a, op, b){
+  switch(op){
+    case '+': return a + b;
+    case '-': return a - b;
+    case 'x': return a * b;
+    case '÷': return a / b;
+    default:  return NaN;
+  }
+}
+
+function mmxIsMulDiv(op){ return op === 'x' || op === '÷'; }
+
+function mmxEvalChain(n1, op1, n2, op2, n3){
+  if(!mmxIsMulDiv(op1) && mmxIsMulDiv(op2)){
+    return mmxApplyOp(n1, op1, mmxApplyOp(n2, op2, n3));
+  }
+  return mmxApplyOp(mmxApplyOp(n1, op1, n2), op2, n3);
+}
+
+function mmxGenerate(difficulty){
+  const level = MMX_DIFFICULTY[difficulty] !== undefined ? difficulty : 'medium';
+  const maxNum = MMX_DIFFICULTY[level];
+
+  let numbers, hOps, vOps, rowRes, colRes;
+  let valid = false;
+  let attempts = 0;
+
+  while(!valid && attempts < 5000){
+    attempts++;
+    numbers = [];
+    for(let i = 0; i < 9; i++) numbers.push(mmxRandomInt(1, maxNum));
+
+    hOps = []; vOps = [];
+    for(let i = 0; i < 6; i++) hOps.push(mmxGetOperator(level));
+    for(let i = 0; i < 6; i++) vOps.push(mmxGetOperator(level));
+
+    rowRes = [];
+    let rowValid = true;
+    for(let r = 0; r < 3; r++){
+      const res = mmxEvalChain(numbers[r*3], hOps[r*2], numbers[r*3+1], hOps[r*2+1], numbers[r*3+2]);
+      if(!Number.isInteger(res) || res < -50 || res > 200){ rowValid = false; break; }
+      rowRes.push(res);
+    }
+    if(!rowValid) continue;
+
+    colRes = [];
+    let colValid = true;
+    for(let c = 0; c < 3; c++){
+      const res = mmxEvalChain(numbers[c], vOps[c], numbers[c+3], vOps[c+3], numbers[c+6]);
+      if(!Number.isInteger(res) || res < -50 || res > 200){ colValid = false; break; }
+      colRes.push(res);
+    }
+    if(colValid) valid = true;
+  }
+
+  return { numbers, hOps, vOps, rowRes, colRes };
+}
+
+function mmxDrawGrid(doc, data, x, y, size, gap, fontSize){
+  doc.setLineWidth(gridLineWidth(VISUAL_STYLE.borders.thickMM));
+  doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+
+  for(let r = 0; r < 5; r++){
+    for(let c = 0; c < 5; c++){
+      const cx = x + c * size, cy = y + r * size;
+
+      if(r % 2 !== 0 && c % 2 !== 0){
+        doc.setFillColor(0);
+        doc.rect(cx, cy, size, size, 'F');
+      } else {
+        doc.setFillColor(255);
+        doc.rect(cx, cy, size, size, 'S');
+      }
+
+      doc.setFont(state.puzzleStyle.fontFamily, 'bold');
+      doc.setFontSize(fontSize);
+      doc.setTextColor(...hexToRgb(state.puzzleStyle.color));
+
+      const tx = cx + size / 2;
+      const ty = cy + size / 2 + fontSize * 0.35 * 0.3527;
+
+      if(r % 2 === 0 && c % 2 === 0){
+        // blank -- the value to solve for
+      } else if(r % 2 === 0){
+        doc.text(String(data.hOps[(r/2)*2 + (c-1)/2]), tx, ty, { align: 'center' });
+      } else if(c % 2 === 0){
+        doc.text(String(data.vOps[(c/2) + ((r-1)/2 * 3)]), tx, ty, { align: 'center' });
+      }
+    }
+  }
+
+  doc.setFontSize(fontSize);
+  doc.setLineWidth(gridLineWidth(VISUAL_STYLE.borders.thickMM));
+
+  for(let r = 0; r < 3; r++){
+    const val = data.rowRes[r];
+    const cy = y + (r * 2) * size;
+    const equalsX = x + 5 * size + gap / 2;
+    const equalsY = cy + size / 2 + fontSize * 0.35 * 0.3527;
+
+    doc.text('=', equalsX, equalsY, { align: 'center' });
+
+    const boxX = x + 5 * size + gap;
+    doc.rect(boxX, cy, size, size, 'S');
+    doc.text(String(val), boxX + size / 2, equalsY, { align: 'center' });
+  }
+
+  for(let c = 0; c < 3; c++){
+    const val = data.colRes[c];
+    const cx = x + (c * 2) * size;
+    const equalsX = cx + size / 2;
+    const equalsY = y + 5 * size + gap / 2 + fontSize * 0.35 * 0.3527;
+
+    doc.text('=', equalsX, equalsY, { align: 'center' });
+
+    const boxY = y + 5 * size + gap;
+    doc.rect(cx, boxY, size, size, 'S');
+    const textY = boxY + size / 2 + fontSize * 0.35 * 0.3527;
+    doc.text(String(val), cx + size / 2, textY, { align: 'center' });
+  }
+}
+
+function mmxDrawPage(doc, data, wMM, hMM){
+  const margin = wMM < 160 ? 15 : 20;
+
+  drawGameTitle(doc, 'mathmatrix', wMM);
+
+  const availableW = wMM - margin * 2;
+  const availableH = hMM - PAGE_CONTENT_TOP - margin;
+
+  let cellSize = (availableW * 0.75) / 5;
+  let gap = cellSize * 0.8;
+  let totalWidth = cellSize * 5 + gap + cellSize;
+
+  if(totalWidth > availableH){
+    const s = availableH / totalWidth;
+    cellSize *= s; gap *= s; totalWidth *= s;
+  }
+  if(totalWidth > availableW){
+    const s = availableW / totalWidth;
+    cellSize *= s; gap *= s; totalWidth *= s;
+  }
+
+  const startX = (wMM - totalWidth) / 2;
+  const startY = PAGE_CONTENT_TOP + (availableH - totalWidth) / 2;
+  const fontSize = puzzleValueFontSize(cellSize, '88');
+
+  mmxDrawGrid(doc, data, startX, startY, cellSize, gap, fontSize);
+}
+
+/* ---------- Number Pyramid (adapted from /pyramid/index.html) ---------- */
+const PYR_DIFFICULTY = { easy: 5, medium: 7, hard: 9 };
+
+function pyrCreateMathGrid(stages, diff){
+  let levels = [];
+  let base = [];
+  let maxBase = 15;
+  if(stages > 8) maxBase = 5;
+  if(stages > 12) maxBase = 2;
+  let minBase = 1;
+  if(diff === 'hard' && stages < 8) minBase = 5;
+
+  for(let j = 0; j < stages; j++){
+    base.push(Math.floor(Math.random() * (maxBase - minBase + 1)) + minBase);
+  }
+  levels.push(base);
+
+  for(let l = 0; l < stages - 1; l++){
+    const row = levels[l];
+    const nextRow = [];
+    for(let k = 0; k < row.length - 1; k++){
+      nextRow.push(row[k] + row[k + 1]);
+    }
+    levels.push(nextRow);
+  }
+  return levels.reverse();
+}
+
+function pyrVerifySolvability(grid, mask){
+  const tempMask = mask.map(row => [...row]);
+  const rows = grid.length;
+  let madeProgress = true;
+
+  while(madeProgress){
+    madeProgress = false;
+    for(let r = 0; r < rows; r++){
+      for(let c = 0; c < tempMask[r].length; c++){
+        if(!tempMask[r][c]){
+          if(r < rows - 1){
+            if(tempMask[r+1][c] && tempMask[r+1][c+1]){
+              tempMask[r][c] = true; madeProgress = true; continue;
+            }
+          }
+          if(r > 0 && c < tempMask[r].length - 1){
+            if(tempMask[r-1][c] && tempMask[r][c+1]){
+              tempMask[r][c] = true; madeProgress = true; continue;
+            }
+          }
+          if(r > 0 && c > 0){
+            if(tempMask[r-1][c-1] && tempMask[r][c-1]){
+              tempMask[r][c] = true; madeProgress = true; continue;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  for(let r = 0; r < rows; r++){
+    for(let c = 0; c < tempMask[r].length; c++){
+      if(!tempMask[r][c]) return false;
+    }
+  }
+  return true;
+}
+
+function pyrCreateSolvableMask(grid, diff){
+  const rows = grid.length;
+  const mask = grid.map(r => r.map(() => true));
+
+  if(diff === 'easy'){
+    for(let r = 0; r < rows - 1; r++){
+      for(let c = 0; c < mask[r].length; c++){
+        if(Math.random() > 0.4) mask[r][c] = false;
+      }
+    }
+    return mask;
+  }
+
+  const cells = [];
+  for(let r = 0; r < rows; r++){
+    for(let c = 0; c < grid[r].length; c++){
+      cells.push({ r, c });
+    }
+  }
+  cells.sort(() => Math.random() - 0.5);
+
+  const targetHidden = (diff === 'hard') ? 0.70 : 0.45;
+  const total = cells.length;
+  let currentHidden = 0;
+
+  for(const cell of cells){
+    if(currentHidden / total >= targetHidden) break;
+    const { r, c } = cell;
+    mask[r][c] = false;
+
+    if(pyrVerifySolvability(grid, mask)){
+      currentHidden++;
+    } else {
+      mask[r][c] = true;
+    }
+  }
+  return mask;
+}
+
+function pyrGenerate(difficulty){
+  const level = PYR_DIFFICULTY[difficulty] !== undefined ? difficulty : 'medium';
+  const stages = PYR_DIFFICULTY[level];
+  const grid = pyrCreateMathGrid(stages, level);
+  const mask = pyrCreateSolvableMask(grid, level);
+  return { grid, mask, stages };
+}
+
+function pyrDrawPyramid(doc, grid, mask, startY, size, wMM){
+  const h = size * 0.85;
+  doc.setLineWidth(gridLineWidth(0.3));
+  doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+
+  for(let r = 0; r < grid.length; r++){
+    const row = grid[r];
+    const rowW = row.length * size;
+    const startX = (wMM - rowW) / 2;
+    const y = startY + r * h;
+
+    for(let c = 0; c < row.length; c++){
+      const x = startX + c * size;
+
+      doc.setFillColor(255);
+      doc.rect(x, y, size, h, 'FD');
+
+      if(mask[r][c]){
+        const val = row[c].toString();
+
+        applyPuzzleValueStyle(doc, Math.min(size, h), val);
+        const fontSize = puzzleValueFontSize(Math.min(size, h), val);
+        doc.text(val, x + size / 2, y + h / 2 + fontSize * 0.35, { align: 'center', baseline: 'bottom' });
+      }
+    }
+  }
+}
+
+function pyrDrawPage(doc, data, wMM, hMM){
+  const { grid, mask, stages } = data;
+  const margin = wMM < 160 ? 15 : 20;
+
+  drawGameTitle(doc, 'pyramid', wMM);
+
+  const usableW = wMM - margin * 2;
+  let boxSize = usableW / stages;
+  if(boxSize > 20) boxSize = 20;
+  if(boxSize < 8) boxSize = 8;
+
+  let h = boxSize * 0.85;
+  let pyramidH = stages * h;
+  const availableH = hMM - PAGE_CONTENT_TOP - margin;
+
+  if(pyramidH > availableH){
+    const scale = availableH / pyramidH;
+    boxSize *= scale;
+    h = boxSize * 0.85;
+    pyramidH = stages * h;
+  }
+
+  const startY = PAGE_CONTENT_TOP + (availableH - pyramidH) / 2;
+
+  pyrDrawPyramid(doc, grid, mask, startY, boxSize, wMM);
+}
+
+/* ---------- Kakuro (adapted from /kakuro/script.js) ---------- */
+const KAK_DIFFICULTY = { easy: 7, medium: 9, hard: 11 };
+const KAK_WHITE = 'white', KAK_BLACK = 'black', KAK_SOLID = 'solid';
+
+function kakShuffle(arr){
+  for(let i = arr.length - 1; i > 0; i--){
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function kakBuildPattern(size){
+  const grid = [];
+  for(let r = 0; r < size; r++){
+    grid[r] = [];
+    for(let c = 0; c < size; c++) grid[r][c] = { type: KAK_SOLID, hClue: null, vClue: null };
+  }
+  for(let r = 0; r < size; r++){ grid[r][0].type = KAK_BLACK; grid[0][r].type = KAK_BLACK; }
+
+  for(let r = 1; r < size; r++){
+    for(let c = 1; c < size; c++){
+      const rand = Math.random();
+      let hRunLen = 0;
+      for(let cc = c - 1; cc >= 0 && grid[r][cc].type === KAK_WHITE; cc--) hRunLen++;
+      let vRunLen = 0;
+      for(let rr = r - 1; rr >= 0 && grid[rr][c].type === KAK_WHITE; rr--) vRunLen++;
+      const shouldBeBlack =
+        hRunLen >= 8 || vRunLen >= 8 ||
+        ((r + c) % 5 === 0 && rand < 0.4) ||
+        (hRunLen >= 4 && rand < 0.3) ||
+        (vRunLen >= 4 && rand < 0.3) ||
+        rand < 0.15;
+      grid[r][c].type = shouldBeBlack ? KAK_BLACK : KAK_WHITE;
+    }
+  }
+
+  let changed = true, iter = 0;
+  while(changed && iter < 100){
+    changed = false; iter++;
+    for(let r = 1; r < size; r++){
+      for(let c = 1; c < size; c++){
+        if(grid[r][c].type === KAK_WHITE){
+          const hasHN = (c > 1 && grid[r][c-1].type === KAK_WHITE) || (c < size - 1 && grid[r][c+1].type === KAK_WHITE);
+          const hasVN = (r > 1 && grid[r-1][c].type === KAK_WHITE) || (r < size - 1 && grid[r+1][c].type === KAK_WHITE);
+          if(!hasHN && !hasVN){
+            if(c < size - 1){ grid[r][c+1].type = KAK_WHITE; changed = true; }
+            else if(r < size - 1){ grid[r+1][c].type = KAK_WHITE; changed = true; }
+            else { grid[r][c].type = KAK_BLACK; changed = true; }
+          }
+        }
+      }
+    }
+  }
+
+  for(let r = 0; r < size; r++){
+    for(let c = 0; c < size; c++){
+      if(grid[r][c].type === KAK_BLACK || grid[r][c].type === KAK_SOLID){
+        const hasHClue = c < size - 1 && grid[r][c+1].type === KAK_WHITE;
+        const hasVClue = r < size - 1 && grid[r+1][c].type === KAK_WHITE;
+        grid[r][c].type = (hasHClue || hasVClue) ? KAK_BLACK : KAK_SOLID;
+      }
+    }
+  }
+  return grid;
+}
+
+function kakIdentifyRuns(grid, size){
+  const runs = [];
+  for(let r = 0; r < size; r++){
+    let runStart = -1;
+    for(let c = 0; c < size; c++){
+      if(grid[r][c].type === KAK_WHITE){ if(runStart === -1) runStart = c; }
+      else {
+        if(runStart !== -1 && c - runStart >= 2){
+          const cells = [];
+          for(let cc = runStart; cc < c; cc++) cells.push({ r, c: cc });
+          runs.push({ cells, sum: 0, direction: 'h', clueCell: { r, c: runStart - 1 } });
+        }
+        runStart = -1;
+      }
+    }
+    if(runStart !== -1 && size - runStart >= 2){
+      const cells = [];
+      for(let cc = runStart; cc < size; cc++) cells.push({ r, c: cc });
+      runs.push({ cells, sum: 0, direction: 'h', clueCell: { r, c: runStart - 1 } });
+    }
+  }
+  for(let c = 0; c < size; c++){
+    let runStart = -1;
+    for(let r = 0; r < size; r++){
+      if(grid[r][c].type === KAK_WHITE){ if(runStart === -1) runStart = r; }
+      else {
+        if(runStart !== -1 && r - runStart >= 2){
+          const cells = [];
+          for(let rr = runStart; rr < r; rr++) cells.push({ r: rr, c });
+          runs.push({ cells, sum: 0, direction: 'v', clueCell: { r: runStart - 1, c } });
+        }
+        runStart = -1;
+      }
+    }
+    if(runStart !== -1 && size - runStart >= 2){
+      const cells = [];
+      for(let rr = runStart; rr < size; rr++) cells.push({ r: rr, c });
+      runs.push({ cells, sum: 0, direction: 'v', clueCell: { r: runStart - 1, c } });
+    }
+  }
+  return runs;
+}
+
+function kakValidatePattern(grid, runs, size){
+  for(let r = 0; r < size; r++){
+    for(let c = 0; c < size; c++){
+      if(grid[r][c].type === KAK_WHITE){
+        const inRun = runs.some(run => run.cells.some(cell => cell.r === r && cell.c === c));
+        if(!inRun) return false;
+      }
+    }
+  }
+  return true;
+}
+
+function kakSolve(grid, solution, runs, size){
+  let emptyCell = null;
+  for(let r = 0; r < size && !emptyCell; r++){
+    for(let c = 0; c < size && !emptyCell; c++){
+      if(grid[r][c].type === KAK_WHITE && solution[r][c] === null) emptyCell = { r, c };
+    }
+  }
+  if(!emptyCell) return true;
+
+  const { r, c } = emptyCell;
+  const used = new Set();
+  for(const run of runs){
+    if(run.cells.some(cell => cell.r === r && cell.c === c)){
+      for(const cell of run.cells){
+        if(solution[cell.r][cell.c] !== null) used.add(solution[cell.r][cell.c]);
+      }
+    }
+  }
+  const candidates = [];
+  for(let num = 1; num <= 9; num++) if(!used.has(num)) candidates.push(num);
+  kakShuffle(candidates);
+
+  for(const num of candidates){
+    solution[r][c] = num;
+    let valid = true;
+    for(const run of runs){
+      if(!run.cells.some(cell => cell.r === r && cell.c === c)) continue;
+      const vals = run.cells.map(cell => solution[cell.r][cell.c]).filter(v => v !== null);
+      if(new Set(vals).size !== vals.length){ valid = false; break; }
+    }
+    if(valid && kakSolve(grid, solution, runs, size)) return true;
+    solution[r][c] = null;
+  }
+  return false;
+}
+
+function kakValidatePuzzle(solution, runs){
+  for(const run of runs){
+    let actualSum = 0;
+    const values = [];
+    for(const cell of run.cells){
+      const val = solution[cell.r][cell.c];
+      if(val === null) return false;
+      actualSum += val;
+      values.push(val);
+    }
+    if(new Set(values).size !== values.length) return false;
+    if(actualSum !== run.sum) return false;
+  }
+  return true;
+}
+
+function kakAttempt(size){
+  const grid = kakBuildPattern(size);
+  const runs = kakIdentifyRuns(grid, size);
+  if(!kakValidatePattern(grid, runs, size)) return null;
+
+  const solution = Array.from({ length: size }, () => Array(size).fill(null));
+  if(!kakSolve(grid, solution, runs, size)) return null;
+
+  for(const run of runs){
+    run.sum = run.cells.reduce((acc, cell) => acc + solution[cell.r][cell.c], 0);
+    const { r: clueR, c: clueC } = run.clueCell;
+    if(clueR >= 0 && clueC >= 0){
+      if(run.direction === 'h') grid[clueR][clueC].hClue = run.sum;
+      else grid[clueR][clueC].vClue = run.sum;
+    }
+  }
+
+  if(!kakValidatePuzzle(solution, runs)) return null;
+  return { grid, solution, runs, size };
+}
+
+function kakCreatePuzzle(size){
+  const MAX_ATTEMPTS = 60;
+  for(let i = 0; i < MAX_ATTEMPTS; i++){
+    const result = kakAttempt(size);
+    if(result) return result;
+  }
+  return kakAttempt(size) || { grid: kakBuildPattern(size), solution: [], runs: [], size };
+}
+
+function kakGenerate(difficulty){
+  const size = KAK_DIFFICULTY[difficulty] || KAK_DIFFICULTY.medium;
+  return kakCreatePuzzle(size);
+}
+
+function kakDrawPage(doc, data, wMM, hMM){
+  const { grid, size } = data;
+  const margin = wMM < 160 ? 12 : 18;
+
+  drawGameTitle(doc, 'kakuro', wMM);
+
+  const topY = PAGE_CONTENT_TOP;
+  const availW = wMM - margin * 2;
+  const availH = hMM - topY - margin;
+  let cellSize = Math.min(availW, availH) / size;
+  const maxCell = wMM < 160 ? 16 : 20;
+  if(cellSize > maxCell) cellSize = maxCell;
+
+  const gridW = cellSize * size, gridH = cellSize * size;
+  const startX = (wMM - gridW) / 2;
+  const startY = topY + (availH - gridH) / 2;
+
+  for(let r = 0; r < size; r++){
+    for(let c = 0; c < size; c++){
+      const cell = grid[r][c];
+      const x = startX + c * cellSize, y = startY + r * cellSize;
+
+      if(cell.type === KAK_WHITE){
+        doc.setFillColor(255, 255, 255);
+        doc.rect(x, y, cellSize, cellSize, 'F');
+      } else {
+        doc.setFillColor(...VISUAL_STYLE.colors.kakuroBlock);
+        doc.rect(x, y, cellSize, cellSize, 'F');
+
+        if(cell.type === KAK_BLACK){
+          doc.setDrawColor(140, 140, 140);
+          doc.setLineWidth(gridLineWidth(0.35));
+          doc.line(x, y, x + cellSize, y + cellSize);
+
+          if(cell.hClue !== null){
+            applyPuzzleValueStyle(doc, cellSize, cell.hClue, 'clue', VISUAL_STYLE.colors.kakuroClue);
+            doc.text(String(cell.hClue), x + cellSize * 0.92, y + cellSize * 0.38, { align: 'right' });
+          }
+          if(cell.vClue !== null){
+            applyPuzzleValueStyle(doc, cellSize, cell.vClue, 'clue', VISUAL_STYLE.colors.kakuroClue);
+            doc.text(String(cell.vClue), x + cellSize * 0.08, y + cellSize * 0.92);
+          }
+        }
+      }
+    }
+  }
+
+  doc.setDrawColor(...VISUAL_STYLE.colors.gridLight);
+  doc.setLineWidth(gridLineWidth(VISUAL_STYLE.borders.thinMM));
+  for(let i = 0; i <= size; i++){
+    const pos = i * cellSize;
+    doc.line(startX + pos, startY, startX + pos, startY + gridH);
+    doc.line(startX, startY + pos, startX + gridW, startY + pos);
+  }
+
+  doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+  doc.setLineWidth(gridLineWidth(VISUAL_STYLE.borders.thickMM));
+  doc.rect(startX, startY, gridW, gridH, 'S');
+}
+
+/* ---------- Sum Puzzle (adapted from /summenrätsel/index.html) ---------- */
+const SUM_GRID_SIZE = 5;
+const SUM_DIFFICULTY = { easy: 0.3, medium: 0.5, hard: 0.7 };
+
+function sumCreatePuzzleData(threshold){
+  const size = SUM_GRID_SIZE;
+  const grid = [];
+  for(let r = 0; r < size; r++){
+    const row = [];
+    for(let c = 0; c < size; c++) row.push(Math.floor(Math.random() * 9) + 1);
+    grid.push(row);
+  }
+
+  const rowSums = grid.map(row => row.reduce((a, b) => a + b, 0));
+  const colSums = [];
+  for(let c = 0; c < size; c++){
+    let s = 0;
+    for(let r = 0; r < size; r++) s += grid[r][c];
+    colSums.push(s);
+  }
+
+  const mask = [];
+  for(let r = 0; r < size; r++){
+    const rowMask = [];
+    for(let c = 0; c < size; c++) rowMask.push(Math.random() >= threshold);
+    mask.push(rowMask);
+  }
+
+  return { grid, mask, rowSums, colSums, size };
+}
+
+function sumGenerate(difficulty){
+  const threshold = SUM_DIFFICULTY[difficulty] !== undefined ? SUM_DIFFICULTY[difficulty] : SUM_DIFFICULTY.medium;
+  return sumCreatePuzzleData(threshold);
+}
+
+function sumDrawPage(doc, data, wMM, hMM){
+  const { grid, mask, rowSums, colSums, size } = data;
+  const margin = wMM < 160 ? 12 : 18;
+
+  drawGameTitle(doc, 'summenratsel', wMM);
+
+  const topY = PAGE_CONTENT_TOP;
+  const availW = wMM - margin * 2;
+  const legendH = 15 + size * 8;
+  const availH = hMM - topY - margin - legendH;
+
+  const GAP_RATIO = 8 / 18, VEXTRA_RATIO = 5 / 18;
+  const hUnits = (size - 1) * (1 + GAP_RATIO) + 1 + 1;
+  const vUnits = (size - 1) * (1 + GAP_RATIO + VEXTRA_RATIO) + 1;
+
+  let cellSize = Math.min(availW / hUnits, availH / vUnits);
+  const maxCell = wMM < 160 ? 14 : 18;
+  if(cellSize > maxCell) cellSize = maxCell;
+
+  const gap = cellSize * GAP_RATIO;
+  const vExtra = cellSize * VEXTRA_RATIO;
+
+  const gridW = (size - 1) * (cellSize + gap) + cellSize;
+  const gridH = (size - 1) * (cellSize + gap + vExtra) + cellSize;
+  const totalW = gridW + cellSize + gap;
+  const startX = margin + Math.max(0, (availW - totalW) / 2);
+  const startY = topY + Math.max(0, (availH - gridH) / 2);
+
+  doc.setLineWidth(gridLineWidth(0.35));
+  doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+
+  for(let r = 0; r < size; r++){
+    for(let c = 0; c < size; c++){
+      const x = startX + c * (cellSize + gap);
+      const y = startY + r * (cellSize + gap + vExtra);
+
+      doc.rect(x, y, cellSize, cellSize);
+
+      if(mask[r][c]){
+        applyPuzzleValueStyle(doc, cellSize, grid[r][c]);
+        doc.text(String(grid[r][c]), x + cellSize / 2, y + cellSize / 1.5, { align: 'center' });
+      }
+
+      // Enlarged operators: the old cellSize * 0.35 rule produced tiny marks.
+      applyRelationStyle(doc, 20, 16);
+      if(r < size - 1){
+        doc.text('+', x + cellSize / 2, y + cellSize + (gap + vExtra) * 0.56, { align: 'center' });
+      } else {
+        doc.text('=', x + cellSize / 2, y + cellSize + 4.5, { align: 'center' });
+        applyRelationStyle(doc, 20, 15);
+        doc.text(String.fromCharCode(97 + c), x + cellSize / 2, y + cellSize + 9.5, { align: 'center' });
+      }
+
+      if(c === size - 1){
+        applyRelationStyle(doc, 20, 16);
+        doc.text(`=  ${String.fromCharCode(65 + r)}`, x + cellSize + gap * 0.6, y + cellSize / 1.5);
+      }
+    }
+  }
+
+  const legendY = startY + gridH + 15;
+  const legendColGap = availW / 2;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(wMM < 160 ? 12 : 13);
+  doc.setTextColor(0);
+  for(let i = 0; i < size; i++){
+    doc.text(`${String.fromCharCode(65 + i)} = ${rowSums[i]}`, margin, legendY + i * 6);
+    doc.text(`${String.fromCharCode(97 + i)} = ${colSums[i]}`, margin + legendColGap, legendY + i * 6);
+  }
+}
+
+/* ---------- Binoxo (adapted from /binoxo/index.html) ---------- */
+const BNX_DIFFICULTY = {
+  easy:   { size: 6,  fill: 0.4  },
+  medium: { size: 8,  fill: 0.55 },
+  hard:   { size: 10, fill: 0.7  }
+};
+
+function bnxIsValid(grid, row, col, val, size){
+  if(col >= 2 && grid[row][col-1] === val && grid[row][col-2] === val) return false;
+  if(row >= 2 && grid[row-1][col] === val && grid[row-2][col] === val) return false;
+
+  let rowCount = 0;
+  for(let c = 0; c < col; c++) if(grid[row][c] === val) rowCount++;
+  if(rowCount >= size / 2) return false;
+
+  let colCount = 0;
+  for(let r = 0; r < row; r++) if(grid[r][col] === val) colCount++;
+  if(colCount >= size / 2) return false;
+
+  return true;
+}
+
+function bnxSolve(grid, r, c, size){
+  if(r === size) return true;
+
+  const nextR = c === size - 1 ? r + 1 : r;
+  const nextC = c === size - 1 ? 0 : c + 1;
+  const tryOrder = Math.random() > 0.5 ? ['X', 'O'] : ['O', 'X'];
+
+  for(const val of tryOrder){
+    if(bnxIsValid(grid, r, c, val, size)){
+      grid[r][c] = val;
+      if(bnxSolve(grid, nextR, nextC, size)) return true;
+      grid[r][c] = null;
+    }
+  }
+  return false;
+}
+
+function bnxCreatePuzzle(size, fill){
+  const MAX_ATTEMPTS = 30;
+  let grid = null;
+  for(let attempt = 0; attempt < MAX_ATTEMPTS; attempt++){
+    const candidate = Array.from({ length: size }, () => Array(size).fill(null));
+    bnxSolve(candidate, 0, 0, size);
+    if(candidate[0][0]){ grid = candidate; break; }
+  }
+  if(!grid) grid = Array.from({ length: size }, () => Array(size).fill('X'));
+
+  const mask = [];
+  for(let r = 0; r < size; r++){
+    const rowMask = [];
+    for(let c = 0; c < size; c++) rowMask.push(Math.random() > fill);
+    mask.push(rowMask);
+  }
+
+  return { grid, mask, size };
+}
+
+function bnxGenerate(difficulty){
+  const cfg = BNX_DIFFICULTY[difficulty] || BNX_DIFFICULTY.medium;
+  return bnxCreatePuzzle(cfg.size, cfg.fill);
+}
+
+function bnxDrawPage(doc, data, wMM, hMM){
+  const { grid, mask, size } = data;
+  const margin = wMM < 160 ? 12 : 18;
+
+  drawGameTitle(doc, 'binoxo', wMM);
+
+  const topY = PAGE_CONTENT_TOP;
+  const availW = wMM - margin * 2;
+  const availH = hMM - topY - margin;
+
+  let cellSize = Math.min(availW, availH) / size;
+  const maxCell = wMM < 160 ? 16 : 20;
+  if(cellSize > maxCell) cellSize = maxCell;
+
+  const gridW = cellSize * size, gridH = cellSize * size;
+  const startX = (wMM - gridW) / 2;
+  const startY = topY + (availH - gridH) / 2;
+
+  doc.setLineWidth(gridLineWidth(0.3));
+  doc.setDrawColor(...VISUAL_STYLE.colors.gridLight);
+  for(let r = 0; r < size; r++){
+    for(let c = 0; c < size; c++){
+      const x = startX + c * cellSize, y = startY + r * cellSize;
+      doc.rect(x, y, cellSize, cellSize);
+
+      if(mask[r][c]){
+        applyPuzzleValueStyle(doc, cellSize, grid[r][c]);
+        doc.text(grid[r][c], x + cellSize / 2, y + cellSize / 2, { align: 'center', baseline: 'middle' });
+      }
+    }
+  }
+
+  doc.setLineWidth(gridLineWidth(0.6));
+  doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+  doc.rect(startX, startY, gridW, gridH, 'S');
+}
+
+/* ---------- Cross Sudoku (adapted from /cross-sudoku/script.js) ---------- */
+const CSU_CONFIG = {
+  GRID_CENTER: 0, GRID_TOP: 1, GRID_BOTTOM: 2, GRID_LEFT: 3, GRID_RIGHT: 4,
+  clueRatio: { easy: 0.65, medium: 0.47, hard: 0.34 }
+};
+
+function csuIsValidPlacement(board, row, col, num) {
+  for (let c = 0; c < 9; c++) if (board[row][c] === num) return false;
+  for (let r = 0; r < 9; r++) if (board[r][col] === num) return false;
+  const boxRow = Math.floor(row / 3) * 3;
+  const boxCol = Math.floor(col / 3) * 3;
+  for (let r = 0; r < 3; r++) {
+    for (let c = 0; c < 3; c++) {
+      if (board[boxRow + r][boxCol + c] === num) return false;
+    }
+  }
+  return true;
+}
+
+function csuFillSudoku(board, row = 0, col = 0) {
+  if (row === 9) return true;
+  const nextRow = col === 8 ? row + 1 : row;
+  const nextCol = col === 8 ? 0 : col + 1;
+  if (board[row][col] !== 0) return csuFillSudoku(board, nextRow, nextCol);
+
+  const nums = csuShuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  for (const num of nums) {
+    if (csuIsValidPlacement(board, row, col, num)) {
+      board[row][col] = num;
+      if (csuFillSudoku(board, nextRow, nextCol)) return true;
+      board[row][col] = 0;
+    }
+  }
+  return false;
+}
+
+function csuGenerateSudoku() {
+  const board = Array(9).fill().map(() => Array(9).fill(0));
+  csuFillSudoku(board);
+  return board;
+}
+
+function csuGenerateConstrainedGrid(centerGrid, position) {
+  const board = Array(9).fill().map(() => Array(9).fill(0));
+
+  if (position === 'top') {
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 9; c++) board[r + 6][c] = centerGrid[r][c];
+  } else if (position === 'bottom') {
+    for (let r = 0; r < 3; r++) for (let c = 0; c < 9; c++) board[r][c] = centerGrid[r + 6][c];
+  } else if (position === 'left') {
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 3; c++) board[r][c + 6] = centerGrid[r][c];
+  } else if (position === 'right') {
+    for (let r = 0; r < 9; r++) for (let c = 0; c < 3; c++) board[r][c] = centerGrid[r][c + 6];
+  }
+
+  csuFillSudoku(board);
+  return board;
+}
+
+function csuShuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function csuCreatePuzzle(difficulty) {
+  const { GRID_CENTER, GRID_TOP, GRID_BOTTOM, GRID_LEFT, GRID_RIGHT, clueRatio } = CSU_CONFIG;
+
+  const sols = [];
+  sols[GRID_CENTER] = csuGenerateSudoku();
+  sols[GRID_TOP] = csuGenerateConstrainedGrid(sols[GRID_CENTER], 'top');
+  sols[GRID_BOTTOM] = csuGenerateConstrainedGrid(sols[GRID_CENTER], 'bottom');
+  sols[GRID_LEFT] = csuGenerateConstrainedGrid(sols[GRID_CENTER], 'left');
+  sols[GRID_RIGHT] = csuGenerateConstrainedGrid(sols[GRID_CENTER], 'right');
+
+  const ratio = clueRatio[difficulty] || clueRatio.medium;
+  const clues = [];
+  for (let g = 0; g < 5; g++) {
+    clues[g] = Array(9).fill().map(() => Array(9).fill(false));
+    const cellsToReveal = Math.floor(81 * ratio);
+    const indices = csuShuffle([...Array(81).keys()]);
+    for (let i = 0; i < cellsToReveal; i++) {
+      const idx = indices[i];
+      const r = Math.floor(idx / 9), c = idx % 9;
+      clues[g][r][c] = true;
+    }
+  }
+
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 9; c++) {
+    if (clues[GRID_CENTER][r][c] || clues[GRID_TOP][r + 6][c]) {
+      clues[GRID_CENTER][r][c] = true; clues[GRID_TOP][r + 6][c] = true;
+    }
+  }
+  for (let r = 0; r < 3; r++) for (let c = 0; c < 9; c++) {
+    if (clues[GRID_CENTER][r + 6][c] || clues[GRID_BOTTOM][r][c]) {
+      clues[GRID_CENTER][r + 6][c] = true; clues[GRID_BOTTOM][r][c] = true;
+    }
+  }
+  for (let r = 0; r < 9; r++) for (let c = 0; c < 3; c++) {
+    if (clues[GRID_CENTER][r][c] || clues[GRID_LEFT][r][c + 6]) {
+      clues[GRID_CENTER][r][c] = true; clues[GRID_LEFT][r][c + 6] = true;
+    }
+  }
+  for (let r = 0; r < 9; r++) for (let c = 0; c < 3; c++) {
+    if (clues[GRID_CENTER][r][c + 6] || clues[GRID_RIGHT][r][c]) {
+      clues[GRID_CENTER][r][c + 6] = true; clues[GRID_RIGHT][r][c] = true;
+    }
+  }
+
+  return { solutions: sols, clues };
+}
+
+function csuDrawGridPortion(doc, data, gridId, rowStart, rowEnd, colStart, colEnd, startX, startY, cellSize) {
+  const numRows = rowEnd - rowStart + 1;
+  const numCols = colEnd - colStart + 1;
+
+  applyPuzzleValueStyle(doc, cellSize, '8');
+
+  for (let r = rowStart; r <= rowEnd; r++) {
+    for (let c = colStart; c <= colEnd; c++) {
+      if (!data.clues[gridId][r][c]) continue;
+      const displayRow = r - rowStart;
+      const displayCol = c - colStart;
+      const x = startX + displayCol * cellSize;
+      const y = startY + displayRow * cellSize;
+      const val = data.solutions[gridId][r][c];
+      doc.text(`${val}`, x + cellSize / 2, y + cellSize / 2 + (cellSize * 0.2), { align: 'center' });
+    }
+  }
+
+  doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+  doc.setLineDashPattern([], 0);
+
+  for (let i = 0; i <= numCols; i++) {
+    const actualCol = colStart + i;
+    doc.setLineWidth(gridLineWidth(actualCol % 3 === 0 ? VISUAL_STYLE.borders.thickMM : VISUAL_STYLE.borders.thinMM));
+    doc.line(startX + i * cellSize, startY, startX + i * cellSize, startY + numRows * cellSize);
+  }
+  for (let i = 0; i <= numRows; i++) {
+    const actualRow = rowStart + i;
+    doc.setLineWidth(gridLineWidth(actualRow % 3 === 0 ? VISUAL_STYLE.borders.thickMM : VISUAL_STYLE.borders.thinMM));
+    doc.line(startX, startY + i * cellSize, startX + numCols * cellSize, startY + i * cellSize);
+  }
+}
+
+function csuDrawPage(doc, data, wMM, hMM) {
+  const { GRID_CENTER, GRID_TOP, GRID_BOTTOM, GRID_LEFT, GRID_RIGHT } = CSU_CONFIG;
+  const margin = 12;
+
+  drawGameTitle(doc, 'crosssudoku', wMM);
+
+  const availW = wMM - margin * 2;
+  const availH = hMM - PAGE_CONTENT_TOP - margin;
+  const cellSize = Math.min(availW, availH) / 21;
+
+  const gridSize9 = cellSize * 9;
+  const gridSize6 = cellSize * 6;
+  const centerX = wMM / 2;
+  const centerY = PAGE_CONTENT_TOP + availH / 2;
+
+  csuDrawGridPortion(doc, data, GRID_CENTER, 0, 8, 0, 8,
+    centerX - gridSize9 / 2, centerY - gridSize9 / 2, cellSize);
+  csuDrawGridPortion(doc, data, GRID_TOP, 0, 5, 0, 8,
+    centerX - gridSize9 / 2, centerY - gridSize9 / 2 - gridSize6, cellSize);
+  csuDrawGridPortion(doc, data, GRID_BOTTOM, 3, 8, 0, 8,
+    centerX - gridSize9 / 2, centerY + gridSize9 / 2, cellSize);
+  csuDrawGridPortion(doc, data, GRID_LEFT, 0, 8, 0, 5,
+    centerX - gridSize9 / 2 - gridSize6, centerY - gridSize9 / 2, cellSize);
+  csuDrawGridPortion(doc, data, GRID_RIGHT, 0, 8, 3, 8,
+    centerX + gridSize9 / 2, centerY - gridSize9 / 2, cellSize);
+}
+
+/* ---------- Killer Sudoku (adapted from /killer-sudoku/script.js) ---------- */
+const KSU_CONFIG = {
+  cageSizeThresholds: {
+    easy:   [0.45, 0.80, 0.95, 1.0],
+    medium: [0.35, 0.65, 0.85, 1.0],
+    hard:   [0.15, 0.35, 0.65, 1.0]
+  },
+  givens: { easy: 4, medium: 1, hard: 0 }
+};
+
+function ksuIsValid(board, r, c, num) {
+  for (let i = 0; i < 9; i++) {
+    if (board[r][i] === num) return false;
+    if (board[i][c] === num) return false;
+  }
+  const br = Math.floor(r / 3) * 3;
+  const bc = Math.floor(c / 3) * 3;
+  for (let i = 0; i < 3; i++)
+    for (let j = 0; j < 3; j++)
+      if (board[br + i][bc + j] === num) return false;
+  return true;
+}
+
+function ksuFindEmpty(board) {
+  for (let r = 0; r < 9; r++)
+    for (let c = 0; c < 9; c++)
+      if (board[r][c] === 0) return [r, c];
+  return null;
+}
+
+function ksuFillSudoku(board) {
+  const empty = ksuFindEmpty(board);
+  if (!empty) return true;
+  const [r, c] = empty;
+  const nums = ksuShuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  for (const num of nums) {
+    if (ksuIsValid(board, r, c, num)) {
+      board[r][c] = num;
+      if (ksuFillSudoku(board)) return true;
+      board[r][c] = 0;
+    }
+  }
+  return false;
+}
+
+function ksuGenerateSudoku() {
+  const board = Array(9).fill().map(() => Array(9).fill(0));
+  ksuFillSudoku(board);
+  return board;
+}
+
+function ksuShuffle(arr) {
+  return arr.sort(() => Math.random() - 0.5);
+}
+
+function ksuGenerateCages(board, difficulty) {
+  const thresholds = KSU_CONFIG.cageSizeThresholds[difficulty] || KSU_CONFIG.cageSizeThresholds.medium;
+  const assigned = Array(9).fill().map(() => Array(9).fill(null));
+  const newCages = [];
+  let cageCount = 0;
+
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      if (assigned[r][c]) continue;
+
+      let size;
+      const seed = Math.random();
+      if (seed < thresholds[0]) size = 2;
+      else if (seed < thresholds[1]) size = 3;
+      else if (seed < thresholds[2]) size = 4;
+      else size = 5;
+
+      const cageCells = [];
+      assigned[r][c] = { temp: true };
+      cageCells.push({ r, c });
+
+      let attempts = 0;
+      while (cageCells.length < size && attempts < 15) {
+        attempts++;
+        const base = cageCells[Math.floor(Math.random() * cageCells.length)];
+        const neighbors = [
+          { r: base.r - 1, c: base.c }, { r: base.r + 1, c: base.c },
+          { r: base.r, c: base.c - 1 }, { r: base.r, c: base.c + 1 }
+        ];
+        const validN = neighbors.filter(n =>
+          n.r >= 0 && n.r < 9 && n.c >= 0 && n.c < 9 && !assigned[n.r][n.c]
+        );
+        if (validN.length === 0) continue;
+        const pick = validN[Math.floor(Math.random() * validN.length)];
+        assigned[pick.r][pick.c] = { temp: true };
+        cageCells.push(pick);
+      }
+
+      if (cageCells.length === 1) {
+        const neighbors = [
+          { r, c: c - 1 }, { r: r - 1, c },
+          { r, c: c + 1 }, { r: r + 1, c }
+        ];
+        let targetCage = null;
+        let bestLen = 99;
+        for (const n of neighbors) {
+          if (n.r >= 0 && n.r < 9 && n.c >= 0 && n.c < 9) {
+            const neighborObj = assigned[n.r][n.c];
+            if (neighborObj && !neighborObj.temp && neighborObj.cells.length < bestLen) {
+              bestLen = neighborObj.cells.length;
+              targetCage = neighborObj;
+            }
+          }
+        }
+        if (targetCage) {
+          targetCage.cells.push({ r, c });
+          targetCage.sum += board[r][c];
+          assigned[r][c] = targetCage;
+          continue;
+        }
+      }
+
+      const sum = cageCells.reduce((acc, pos) => acc + board[pos.r][pos.c], 0);
+      const newCage = { id: cageCount++, sum, cells: cageCells };
+      newCages.push(newCage);
+      cageCells.forEach(pos => { assigned[pos.r][pos.c] = newCage; });
+    }
+  }
+  return newCages;
+}
+
+function ksuCreatePuzzle(difficulty) {
+  const diff = ['easy', 'medium', 'hard'].includes(difficulty) ? difficulty : 'medium';
+  const board = ksuGenerateSudoku();
+  const cages = ksuGenerateCages(board, diff);
+
+  const map = Array(9).fill().map(() => Array(9).fill(-1));
+  cages.forEach((cage, idx) => cage.cells.forEach(pos => { map[pos.r][pos.c] = idx; }));
+
+  const givenCount = KSU_CONFIG.givens[diff] || 0;
+  const givens = Array(9).fill().map(() => Array(9).fill(false));
+  if (givenCount > 0) {
+    const indices = ksuShuffle([...Array(81).keys()]);
+    for (let i = 0; i < givenCount; i++) {
+      const idx = indices[i];
+      givens[Math.floor(idx / 9)][idx % 9] = true;
+    }
+  }
+
+  return { solution: board, cages, map, givens };
+}
+
+function ksuDrawPage(doc, data, wMM, hMM) {
+  const margin = 12;
+
+  drawGameTitle(doc, 'killersudoku', wMM);
+
+  const availW = wMM - margin * 2;
+  const availH = hMM - PAGE_CONTENT_TOP - margin;
+  const cellSize = Math.min(availW, availH) / 9;
+  const startX = (wMM - cellSize * 9) / 2;
+  const startY = PAGE_CONTENT_TOP + (availH - cellSize * 9) / 2;
+
+  const inset = cellSize * 0.09;
+  const L_LEN = cellSize * 0.05;
+
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      const cageId = data.map[r][c];
+      const x = startX + c * cellSize;
+      const y = startY + r * cellSize;
+
+      const hasTop = (r === 0 || data.map[r - 1][c] !== cageId);
+      const hasBottom = (r === 8 || data.map[r + 1][c] !== cageId);
+      const hasLeft = (c === 0 || data.map[r][c - 1] !== cageId);
+      const hasRight = (c === 8 || data.map[r][c + 1] !== cageId);
+
+      doc.setLineWidth(gridLineWidth(0.35));
+      doc.setLineDashPattern([1.2, 0.8], 0);
+      doc.setDrawColor(80, 80, 80);
+
+      if (hasTop) {
+        const start = hasLeft ? x + inset : x;
+        const end = hasRight ? x + cellSize - inset : x + cellSize;
+        doc.line(start, y + inset, end, y + inset);
+      }
+      if (hasBottom) {
+        const start = hasLeft ? x + inset : x;
+        const end = hasRight ? x + cellSize - inset : x + cellSize;
+        doc.line(start, y + cellSize - inset, end, y + cellSize - inset);
+      }
+      if (hasLeft) {
+        const start = hasTop ? y + inset : y;
+        const end = hasBottom ? y + cellSize - inset : y + cellSize;
+        doc.line(x + inset, start, x + inset, end);
+      }
+      if (hasRight) {
+        const start = hasTop ? y + inset : y;
+        const end = hasBottom ? y + cellSize - inset : y + cellSize;
+        doc.line(x + cellSize - inset, start, x + cellSize - inset, end);
+      }
+
+      doc.setLineDashPattern([1.2, 0.8], 0);
+      doc.setLineWidth(gridLineWidth(0.35));
+
+      const checkBorder = (rr, cc, side) => {
+        if (rr < 0 || rr > 8 || cc < 0 || cc > 8) return true;
+        const myId = data.map[rr][cc];
+        if (side === 'top') return (rr === 0 || data.map[rr - 1][cc] !== myId);
+        if (side === 'bottom') return (rr === 8 || data.map[rr + 1][cc] !== myId);
+        if (side === 'left') return (cc === 0 || data.map[rr][cc - 1] !== myId);
+        if (side === 'right') return (cc === 8 || data.map[rr][cc + 1] !== myId);
+        return false;
+      };
+
+      if (hasTop && hasLeft) {
+        doc.line(x + inset, y + inset + L_LEN, x + inset, y + inset);
+        doc.line(x + inset, y + inset, x + inset + L_LEN, y + inset);
+      }
+      if (hasTop && hasRight) {
+        doc.line(x + cellSize - inset - L_LEN, y + inset, x + cellSize - inset, y + inset);
+        doc.line(x + cellSize - inset, y + inset, x + cellSize - inset, y + inset + L_LEN);
+      }
+      if (hasBottom && hasLeft) {
+        doc.line(x + inset, y + cellSize - inset - L_LEN, x + inset, y + cellSize - inset);
+        doc.line(x + inset, y + cellSize - inset, x + inset + L_LEN, y + cellSize - inset);
+      }
+      if (hasBottom && hasRight) {
+        doc.line(x + cellSize - inset - L_LEN, y + cellSize - inset, x + cellSize - inset, y + cellSize - inset);
+        doc.line(x + cellSize - inset, y + cellSize - inset, x + cellSize - inset, y + cellSize - inset - L_LEN);
+      }
+
+      if (hasTop && !hasLeft && !checkBorder(r, c - 1, 'top')) {
+        doc.line(x - inset, y + inset, x - inset, y);
+        doc.line(x - inset, y + inset, x, y + inset);
+      }
+      if (hasLeft && !hasTop && !checkBorder(r - 1, c, 'left')) {
+        doc.line(x + inset, y - inset, x + inset, y);
+        doc.line(x + inset, y - inset, x, y - inset);
+      }
+      if (hasTop && !hasRight && !checkBorder(r, c + 1, 'top')) {
+        doc.line(x + cellSize + inset, y + inset, x + cellSize + inset, y);
+        doc.line(x + cellSize + inset, y + inset, x + cellSize, y + inset);
+      }
+      if (hasRight && !hasTop && !checkBorder(r - 1, c, 'right')) {
+        doc.line(x + cellSize - inset, y - inset, x + cellSize - inset, y);
+        doc.line(x + cellSize - inset, y - inset, x + cellSize, y - inset);
+      }
+      if (hasBottom && !hasLeft && !checkBorder(r, c - 1, 'bottom')) {
+        doc.line(x - inset, y + cellSize - inset, x - inset, y + cellSize);
+        doc.line(x - inset, y + cellSize - inset, x, y + cellSize - inset);
+      }
+      if (hasLeft && !hasBottom && !checkBorder(r + 1, c, 'left')) {
+        doc.line(x + inset, y + cellSize + inset, x + inset, y + cellSize);
+        doc.line(x + inset, y + cellSize + inset, x, y + cellSize + inset);
+      }
+      if (hasBottom && !hasRight && !checkBorder(r, c + 1, 'bottom')) {
+        doc.line(x + cellSize + inset, y + cellSize - inset, x + cellSize + inset, y + cellSize);
+        doc.line(x + cellSize + inset, y + cellSize - inset, x + cellSize, y + cellSize - inset);
+      }
+      if (hasRight && !hasBottom && !checkBorder(r + 1, c, 'right')) {
+        doc.line(x + cellSize - inset, y + cellSize + inset, x + cellSize - inset, y + cellSize);
+        doc.line(x + cellSize - inset, y + cellSize + inset, x + cellSize, y + cellSize + inset);
+      }
+    }
+  }
+
+  doc.setLineDashPattern([], 0);
+  doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+  for (let i = 0; i <= 9; i++) {
+    const pos = i * cellSize;
+    doc.setLineWidth(gridLineWidth(i % 3 === 0 ? VISUAL_STYLE.borders.thickMM : VISUAL_STYLE.borders.thinMM));
+    doc.line(startX + pos, startY, startX + pos, startY + cellSize * 9);
+    doc.line(startX, startY + pos, startX + cellSize * 9, startY + pos);
+  }
+
+  doc.setTextColor(0);
+  for (let r = 0; r < 9; r++) {
+    for (let c = 0; c < 9; c++) {
+      const cx = startX + c * cellSize;
+      const cy = startY + r * cellSize;
+      const cageId = data.map[r][c];
+      const cage = data.cages[cageId];
+
+      let minR = 99, minC = 99;
+      cage.cells.forEach(ce => {
+        if (ce.r < minR) { minR = ce.r; minC = ce.c; }
+        else if (ce.r === minR && ce.c < minC) { minC = ce.c; }
+      });
+
+      if (r === minR && c === minC) {
+        applyPuzzleValueStyle(doc, cellSize, cage.sum, 'clue');
+        doc.text(`${cage.sum}`, cx + cellSize * 0.12, cy + cellSize * 0.3);
+      }
+
+      if (data.givens[r][c]) {
+        applyPuzzleValueStyle(doc, cellSize, data.solution[r][c]);
+        doc.text(`${data.solution[r][c]}`, cx + cellSize / 2, cy + cellSize / 2 + cellSize * 0.18, { align: 'center' });
+      }
+    }
+  }
+}
+
+/* ---------- Flower Sudoku (adapted from /flower-sudoku/script.js) ---------- */
+const FSU_CONFIG = {
+  GRID_DEFS: [
+    { id: 'T', r: [0, 8],  c: [3, 11] },
+    { id: 'B', r: [6, 14], c: [3, 11] },
+    { id: 'L', r: [3, 11], c: [0, 8]  },
+    { id: 'R', r: [3, 11], c: [6, 14] },
+    { id: 'C', r: [3, 11], c: [3, 11] }
+  ],
+  clueChance: { easy: 0.5, medium: 0.4, hard: 0.32 }
+};
+
+function fsuIsInside(r, c, def) {
+  return r >= def.r[0] && r <= def.r[1] && c >= def.c[0] && c <= def.c[1];
+}
+
+function fsuIsCellValid(r, c) {
+  for (const def of FSU_CONFIG.GRID_DEFS) {
+    if (fsuIsInside(r, c, def)) return true;
+  }
+  return false;
+}
+
+function fsuCheckSudokuRules(grid, def, r, c, num) {
+  const localR = r - def.r[0];
+  const localC = c - def.c[0];
+
+  for (let i = 0; i < 9; i++) {
+    if (grid[def.r[0] + localR][def.c[0] + i] === num) return false;
+  }
+  for (let i = 0; i < 9; i++) {
+    if (grid[def.r[0] + i][def.c[0] + localC] === num) return false;
+  }
+  const boxR = Math.floor(localR / 3) * 3;
+  const boxC = Math.floor(localC / 3) * 3;
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      if (grid[def.r[0] + boxR + i][def.c[0] + boxC + j] === num) return false;
+    }
+  }
+  return true;
+}
+
+function fsuIsValidPlacement(grid, r, c, num) {
+  for (const def of FSU_CONFIG.GRID_DEFS) {
+    if (fsuIsInside(r, c, def) && !fsuCheckSudokuRules(grid, def, r, c, num)) return false;
+  }
+  return true;
+}
+
+function fsuShuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
+
+function fsuSolve(grid, r, c) {
+  if (r === 15) return true;
+
+  const nextC = (c === 14) ? 0 : c + 1;
+  const nextR = (c === 14) ? r + 1 : r;
+
+  if (!fsuIsCellValid(r, c)) return fsuSolve(grid, nextR, nextC);
+
+  const nums = fsuShuffle([1, 2, 3, 4, 5, 6, 7, 8, 9]);
+  for (const num of nums) {
+    if (fsuIsValidPlacement(grid, r, c, num)) {
+      grid[r][c] = num;
+      if (fsuSolve(grid, nextR, nextC)) return true;
+      grid[r][c] = 0;
+    }
+  }
+  return false;
+}
+
+function fsuGenerateFlowerSudoku(grid) {
+  return fsuSolve(grid, 0, 0);
+}
+
+function fsuCreatePuzzle(difficulty) {
+  const solution = Array(15).fill().map(() => Array(15).fill(0));
+  fsuGenerateFlowerSudoku(solution);
+
+  const chance = FSU_CONFIG.clueChance[difficulty] || FSU_CONFIG.clueChance.medium;
+  const puzzle = Array(15).fill().map(() => Array(15).fill(null));
+  for (let r = 0; r < 15; r++) {
+    for (let c = 0; c < 15; c++) {
+      if (fsuIsCellValid(r, c) && Math.random() < chance) {
+        puzzle[r][c] = solution[r][c];
+      }
+    }
+  }
+
+  return { solution, puzzle };
+}
+
+function fsuDrawPage(doc, data, wMM, hMM) {
+  const margin = 12;
+
+  drawGameTitle(doc, 'flowersudoku', wMM);
+
+  const availW = wMM - margin * 2;
+  const availH = hMM - PAGE_CONTENT_TOP - margin;
+  const cellSize = Math.min(availW, availH) / 15;
+  const startX = (wMM - cellSize * 15) / 2;
+  const startY = PAGE_CONTENT_TOP + (availH - cellSize * 15) / 2;
+
+  doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+  doc.setLineWidth(gridLineWidth(0.2));
+
+  for (let r = 0; r < 15; r++) {
+    for (let c = 0; c < 15; c++) {
+      if (!fsuIsCellValid(r, c)) continue;
+      const x = startX + c * cellSize;
+      const y = startY + r * cellSize;
+
+      if (data.puzzle[r][c] !== null && data.puzzle[r][c] !== 0) {
+        applyPuzzleValueStyle(doc, cellSize, data.puzzle[r][c]);
+        doc.text(String(data.puzzle[r][c]), x + cellSize / 2, y + cellSize / 2 + (cellSize * 0.2), { align: 'center' });
+      }
+
+      doc.rect(x, y, cellSize, cellSize);
+    }
+  }
+
+  FSU_CONFIG.GRID_DEFS.forEach(def => {
+    const x = startX + def.c[0] * cellSize;
+    const y = startY + def.r[0] * cellSize;
+    const w = 9 * cellSize;
+    const h = 9 * cellSize;
+    doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+    doc.setLineWidth(gridLineWidth(0.6));
+    doc.rect(x, y, w, h);
+
+    for (let i = 3; i < 9; i += 3) {
+      doc.line(x + i * cellSize, y, x + i * cellSize, y + h);
+      doc.line(x, y + i * cellSize, x + w, y + i * cellSize);
+    }
+  });
+}
+
+/* ---------- Crack the Code (adapted from /crack-the-code/script.js) ---------- */
+const CRK_DIFFICULTY = { easy: 3, medium: 4, hard: 5 };
+const CRK_MAX_ATTEMPTS = 50;
+
+function crkGenerateCode(length){
+  const digits = [0,1,2,3,4,5,6,7,8,9];
+  const code = [];
+  for(let i = 0; i < length; i++){
+    const randomIndex = Math.floor(Math.random() * digits.length);
+    code.push(digits[randomIndex]);
+    digits.splice(randomIndex, 1);
+  }
+  return code;
+}
+
+function crkGenerateClues(code, codeLength){
+  const targetClueCount = codeLength + 2;
+  let generatedClues = [];
+
+  let usedAsCorrect = new Set();
+
+  const allDigits = [0,1,2,3,4,5,6,7,8,9];
+  const badDigits = allDigits.filter(d => !code.includes(d));
+
+  function getUniqueFiller(currentArr, sourceArr){
+    const candidates = sourceArr.filter(x => !currentArr.includes(x));
+    if(candidates.length === 0) return -1;
+    return candidates[Math.floor(Math.random() * candidates.length)];
+  }
+  function getUnusedIndex(){
+    const unused = [];
+    for(let i = 0; i < code.length; i++) if(!usedAsCorrect.has(i)) unused.push(i);
+    if(unused.length === 0) return -1;
+    return unused[Math.floor(Math.random() * unused.length)];
+  }
+  function getRandomIndex(){ return Math.floor(Math.random() * codeLength); }
+
+  const badPool = shuffle([...badDigits]);
+  const nothingCorrectDigits = badPool.slice(0, codeLength);
+  generatedClues.push({ guess: [...nothingCorrectDigits], type: 'nothing_correct' });
+
+  const safeFillers = badDigits.filter(d => !nothingCorrectDigits.includes(d));
+
+  {
+    const targetIdx = getUnusedIndex();
+    if(targetIdx !== -1){
+      let clueGuess = Array(codeLength).fill(-1);
+      clueGuess[targetIdx] = code[targetIdx];
+      usedAsCorrect.add(targetIdx);
+      let usedFromNothing = 0;
+      const neededFromNothing = 1;
+      for(let i = 0; i < codeLength; i++){
+        if(clueGuess[i] === -1){
+          if(usedFromNothing < neededFromNothing){
+            let f = getUniqueFiller(clueGuess, nothingCorrectDigits);
+            if(f !== -1){ clueGuess[i] = f; usedFromNothing++; continue; }
+          }
+          let f = getUniqueFiller(clueGuess, safeFillers);
+          if(f === -1) f = getUniqueFiller(clueGuess, badDigits);
+          clueGuess[i] = (f !== -1) ? f : badDigits[0];
+        }
+      }
+      generatedClues.push({ guess: clueGuess, type: 'correct_well_placed' });
+    }
+  }
+
+  {
+    const targetIdx = getUnusedIndex();
+    if(targetIdx !== -1){
+      usedAsCorrect.add(targetIdx);
+      let clueGuess = Array(codeLength).fill(-1);
+      const correctVal = code[targetIdx];
+      let wrongPos;
+      do { wrongPos = Math.floor(Math.random() * codeLength); } while(wrongPos === targetIdx);
+      clueGuess[wrongPos] = correctVal;
+      let usedFromNothing = 0;
+      const neededFromNothing = 2;
+      for(let i = 0; i < codeLength; i++){
+        if(clueGuess[i] === -1){
+          if(usedFromNothing < neededFromNothing){
+            let f = getUniqueFiller(clueGuess, nothingCorrectDigits);
+            if(f !== -1){ clueGuess[i] = f; usedFromNothing++; continue; }
+          }
+          let f = getUniqueFiller(clueGuess, safeFillers);
+          if(f === -1) f = getUniqueFiller(clueGuess, badDigits);
+          clueGuess[i] = (f !== -1) ? f : badDigits[0];
+        }
+      }
+      generatedClues.push({ guess: clueGuess, type: 'correct_wrong_placed' });
+    }
+  }
+
+  {
+    const idx1 = Math.floor(Math.random() * codeLength);
+    let idx2;
+    do { idx2 = Math.floor(Math.random() * codeLength); } while(idx2 === idx1);
+    let clueGuess = Array(codeLength).fill(-1);
+    clueGuess[idx2] = code[idx1];
+    clueGuess[idx1] = code[idx2];
+    for(let i = 0; i < codeLength; i++){
+      if(clueGuess[i] === -1){
+        let f = getUniqueFiller(clueGuess, safeFillers);
+        if(f === -1) f = getUniqueFiller(clueGuess, badDigits);
+        clueGuess[i] = (f !== -1) ? f : badDigits[0];
+      }
+    }
+    generatedClues.push({ guess: clueGuess, type: 'two_correct_wrong_placed' });
+  }
+
+  {
+    let targetIdx = getUnusedIndex();
+    if(targetIdx === -1) targetIdx = getRandomIndex();
+    else usedAsCorrect.add(targetIdx);
+    let clueGuess = Array(codeLength).fill(-1);
+    const correctVal = code[targetIdx];
+    let wrongPos;
+    do { wrongPos = Math.floor(Math.random() * codeLength); } while(wrongPos === targetIdx);
+    clueGuess[wrongPos] = correctVal;
+    for(let i = 0; i < codeLength; i++){
+      if(clueGuess[i] === -1){
+        let f = getUniqueFiller(clueGuess, safeFillers);
+        if(f === -1) f = getUniqueFiller(clueGuess, badDigits);
+        clueGuess[i] = (f !== -1) ? f : badDigits[0];
+      }
+    }
+    generatedClues.push({ guess: clueGuess, type: 'correct_wrong_placed' });
+  }
+
+  while(generatedClues.length < targetClueCount){
+    let targetIdx = getUnusedIndex();
+    if(targetIdx === -1) targetIdx = getRandomIndex();
+    else usedAsCorrect.add(targetIdx);
+    let clueGuess = Array(codeLength).fill(-1);
+    const correctVal = code[targetIdx];
+    let wrongPos;
+    do { wrongPos = Math.floor(Math.random() * codeLength); } while(wrongPos === targetIdx);
+    clueGuess[wrongPos] = correctVal;
+    for(let i = 0; i < codeLength; i++){
+      if(clueGuess[i] === -1){
+        let f = getUniqueFiller(clueGuess, badDigits);
+        clueGuess[i] = (f !== -1) ? f : badDigits[0];
+      }
+    }
+    generatedClues.push({ guess: clueGuess, type: 'correct_wrong_placed' });
+  }
+
+  return shuffle(generatedClues);
+}
+
+function crkGetPermutations(arr, length){
+  const results = [];
+  function permute(current, remaining){
+    if(current.length === length){ results.push([...current]); return; }
+    for(let i = 0; i < remaining.length; i++){
+      current.push(remaining[i]);
+      const newRemaining = [...remaining.slice(0, i), ...remaining.slice(i + 1)];
+      permute(current, newRemaining);
+      current.pop();
+    }
+  }
+  permute([], arr);
+  return results;
+}
+
+function crkTestClueAgainstCode(candidate, clue){
+  const guess = clue.guess;
+  let correctWellPlaced = 0;
+  let correctWrongPlaced = 0;
+  for(let i = 0; i < guess.length; i++){
+    const digit = guess[i];
+    const candidateIndex = candidate.indexOf(digit);
+    if(candidateIndex === -1) continue;
+    else if(candidateIndex === i) correctWellPlaced++;
+    else correctWrongPlaced++;
+  }
+  switch(clue.type){
+    case 'nothing_correct': return correctWellPlaced === 0 && correctWrongPlaced === 0;
+    case 'correct_well_placed': return correctWellPlaced === 1 && correctWrongPlaced === 0;
+    case 'correct_wrong_placed': return correctWellPlaced === 0 && correctWrongPlaced === 1;
+    case 'two_correct_wrong_placed': return correctWellPlaced === 0 && correctWrongPlaced === 2;
+    default: return false;
+  }
+}
+
+function crkTestAllClues(candidate, clues){
+  for(const clue of clues) if(!crkTestClueAgainstCode(candidate, clue)) return false;
+  return true;
+}
+
+function crkFindAllSolutions(clues, codeLength){
+  const solutions = [];
+  const allPerms = crkGetPermutations([0,1,2,3,4,5,6,7,8,9], codeLength);
+  for(const candidate of allPerms){
+    if(crkTestAllClues(candidate, clues)){
+      solutions.push(candidate);
+      if(solutions.length > 1) return solutions;
+    }
+  }
+  return solutions;
+}
+
+function crkHasUniqueSolution(clues, expectedCode, codeLength){
+  const solutions = crkFindAllSolutions(clues, codeLength);
+  if(solutions.length === 1) return solutions[0].join('') === expectedCode.join('');
+  return false;
+}
+
+function crkCreatePuzzle(difficulty){
+  const codeLength = CRK_DIFFICULTY[difficulty] || CRK_DIFFICULTY.medium;
+  let code, clues;
+  let attempts = 0;
+  do {
+    code = crkGenerateCode(codeLength);
+    clues = crkGenerateClues(code, codeLength);
+    attempts++;
+  } while(!crkHasUniqueSolution(clues, code, codeLength) && attempts < CRK_MAX_ATTEMPTS);
+  return { clues, codeLength };
+}
+
+function crkClueLabel(type){
+  switch(type){
+    case 'nothing_correct': return t('crkNothingCorrect');
+    case 'correct_well_placed': return t('crkCorrectWellPlaced');
+    case 'correct_wrong_placed': return t('crkCorrectWrongPlaced');
+    case 'two_correct_wrong_placed': return t('crkTwoCorrectWrongPlaced');
+    default: return '';
+  }
+}
+
+function crkDrawPage(doc, data, wMM, hMM){
+  if(!data || !data.clues || data.clues.length === 0){
+    drawFallbackPage(doc, gameName('crackthecode'), 'Could not generate a valid code-breaking puzzle.', wMM, hMM);
+    return;
+  }
+  const { clues, codeLength } = data;
+  const margin = wMM < 160 ? 12 : 18;
+  const contentWidth = wMM - margin*2;
+
+  drawGameTitle(doc, 'crackthecode', wMM);
+
+  const clueRowHeight = wMM < 160 ? 9 : 11;
+  const cluesBoxPadding = wMM < 160 ? 6 : 8;
+  const cluesBoxHeight = cluesBoxPadding + 8 + (clues.length * clueRowHeight);
+
+  const numSets = (codeLength === 3) ? 5 : 4;
+  const innerGap = 1.5;
+  const outerGap = 6;
+  const maxWorkBoxSize = wMM < 160 ? 7 : 8.5;
+  const widthPerSet = (contentWidth - (numSets - 1) * outerGap) / numSets;
+  let workBoxSize = (widthPerSet - (codeLength - 1) * innerGap) / codeLength;
+  if(workBoxSize > maxWorkBoxSize) workBoxSize = maxWorkBoxSize;
+
+  const answerBoxSize = Math.min(wMM < 160 ? 13 : 15, (contentWidth - (codeLength - 1) * 4) / codeLength);
+
+  const workspaceGap = 4;
+  const postWorkGap = 12;
+  const headingGap = 10;
+
+  const totalHeight = cluesBoxHeight + (cluesBoxPadding - 2) + workspaceGap + workBoxSize + postWorkGap + headingGap + answerBoxSize;
+  const availableHeight = hMM - PAGE_CONTENT_TOP - margin;
+  let y = PAGE_CONTENT_TOP + Math.max(0, (availableHeight - totalHeight) / 2);
+
+  doc.setDrawColor(...VISUAL_STYLE.colors.gridLight); doc.setLineWidth(gridLineWidth(0.3));
+  doc.roundedRect(margin, y, contentWidth, cluesBoxHeight, 2.5, 2.5);
+
+  y += cluesBoxPadding;
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(wMM < 160 ? 11 : 13); doc.setTextColor(0,0,0);
+  const cluesTitle = t('crkCluesHeader');
+  const cluesTitleW = doc.getTextWidth(cluesTitle);
+  const cluesTitleX = margin + (contentWidth - cluesTitleW) / 2;
+  doc.text(cluesTitle, cluesTitleX, y + 2);
+
+  doc.setDrawColor(...VISUAL_STYLE.colors.gridLight); doc.setLineWidth(gridLineWidth(0.25));
+  doc.line(cluesTitleX, y + 3, cluesTitleX + cluesTitleW, y + 3);
+
+  y += 8;
+
+  clues.forEach(clue => {
+    doc.setFont(state.puzzleStyle.fontFamily, 'bold');
+    doc.setFontSize(state.puzzleStyle.fontSizePt);
+    doc.setTextColor(...hexToRgb(state.puzzleStyle.color));
+    doc.text(clue.guess.join(' '), margin + 5, y);
+
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(wMM < 160 ? 8 : 9.5); doc.setTextColor(100,100,100);
+    const textX = margin + 8 + (codeLength * 6.5);
+    doc.text(crkClueLabel(clue.type), textX, y);
+
+    doc.setTextColor(0,0,0);
+    y += clueRowHeight;
+  });
+
+  y += cluesBoxPadding - 2;
+
+  doc.setFont('helvetica', 'italic'); doc.setFontSize(wMM < 160 ? 8 : 9); doc.setTextColor(100,100,100);
+  doc.text(t('crkWorkspace'), margin, y);
+  doc.setFont('helvetica', 'normal'); doc.setFontSize(wMM < 160 ? 6.5 : 7.5);
+  doc.text(t('crkWorkspaceNote'), margin + 18, y);
+  y += workspaceGap;
+
+  const actualSetWidth = codeLength * workBoxSize + (codeLength - 1) * innerGap;
+  const totalUsedWidth = numSets * actualSetWidth + (numSets - 1) * outerGap;
+  let startX = margin + (contentWidth - totalUsedWidth) / 2;
+
+  doc.setDrawColor(...VISUAL_STYLE.colors.gridLight); doc.setLineWidth(gridLineWidth(0.25));
+  for(let set = 0; set < numSets; set++){
+    let bx = startX;
+    for(let c = 0; c < codeLength; c++){
+      doc.rect(bx, y, workBoxSize, workBoxSize);
+      bx += workBoxSize + innerGap;
+    }
+    startX += actualSetWidth + outerGap;
+  }
+
+  y += workBoxSize + postWorkGap;
+  doc.setTextColor(0,0,0);
+
+  doc.setFont('helvetica', 'bold'); doc.setFontSize(wMM < 160 ? 12 : 14);
+  const answerText = t('crkYourAnswer');
+  const crackTextW = doc.getTextWidth(answerText);
+  const crackTextX = (wMM - crackTextW) / 2;
+  doc.text(answerText, crackTextX, y);
+
+  doc.setDrawColor(...VISUAL_STYLE.colors.gridLight); doc.setLineWidth(gridLineWidth(0.25));
+  doc.line(crackTextX, y + 1.5, crackTextX + crackTextW, y + 1.5);
+
+  y += headingGap;
+
+  const boxGap = 4;
+  const totalBoxWidth = codeLength * answerBoxSize + (codeLength - 1) * boxGap;
+  let boxX = (wMM - totalBoxWidth) / 2;
+
+  doc.setDrawColor(...VISUAL_STYLE.colors.grid); doc.setLineWidth(gridLineWidth(0.6));
+  for(let j = 0; j < codeLength; j++){
+    doc.roundedRect(boxX, y, answerBoxSize, answerBoxSize, 1.5, 1.5);
+    boxX += answerBoxSize + boxGap;
+  }
+}
+
+/* ---------- Futoshiki (adapted from /futoshiki/index.html) ---------- */
+const FUTOSHIKI_DIFFICULTY = {
+  easy:   { size: 5, prob: 0.3 },
+  medium: { size: 6, prob: 0.5 },
+  hard:   { size: 7, prob: 0.7 }
+};
+
+function futIsSafe(grid, r, c, val, size){
+  for(let x = 0; x < size; x++){
+    if(grid[r][x] === val) return false;
+    if(grid[x][c] === val) return false;
+  }
+  return true;
+}
+
+function futFillLatinSquare(grid, r, c, size){
+  if(r === size) return true;
+  let nextR = c === size - 1 ? r + 1 : r;
+  let nextC = c === size - 1 ? 0 : c + 1;
+
+  if(grid[r][c] !== 0) return futFillLatinSquare(grid, nextR, nextC, size);
+
+  let nums = shuffle(Array.from({length: size}, (_, i) => i + 1));
+
+  for(let num of nums){
+    if(futIsSafe(grid, r, c, num, size)){
+      grid[r][c] = num;
+      if(futFillLatinSquare(grid, nextR, nextC, size)) return true;
+      grid[r][c] = 0;
+    }
+  }
+  return false;
+}
+
+function futCreatePuzzle(difficulty){
+  const cfg = FUTOSHIKI_DIFFICULTY[difficulty] || FUTOSHIKI_DIFFICULTY.medium;
+  const size = cfg.size;
+  const prob = cfg.prob;
+
+  let grid = Array.from({ length: size }, () => Array(size).fill(0));
+  futFillLatinSquare(grid, 0, 0, size);
+
+  let hIneq = Array.from({ length: size }, () => Array(size - 1).fill(null));
+  let vIneq = Array.from({ length: size - 1 }, () => Array(size).fill(null));
+
+  const constraintProb = 0.6 - (prob * 0.4);
+
+  for(let r = 0; r < size; r++){
+    for(let c = 0; c < size - 1; c++){
+      if(Math.random() < constraintProb) hIneq[r][c] = grid[r][c] < grid[r][c+1] ? '<' : '>';
+    }
+  }
+  for(let r = 0; r < size - 1; r++){
+    for(let c = 0; c < size; c++){
+      if(Math.random() < constraintProb) vIneq[r][c] = grid[r][c] < grid[r+1][c] ? '<' : '>';
+    }
+  }
+
+  let mask = [];
+  for(let r = 0; r < size; r++){
+    let rowMask = [];
+    for(let c = 0; c < size; c++) rowMask.push(Math.random() > prob);
+    mask.push(rowMask);
+  }
+
+  return { grid, mask, hIneq, vIneq, size };
+}
+
+function futDrawPage(doc, data, wMM, hMM){
+  if(!data || !data.grid){
+    drawFallbackPage(doc, gameName('futoshiki'), 'Could not generate a Futoshiki grid.', wMM, hMM);
+    return;
+  }
+  const size = data.size;
+  const margin = wMM < 160 ? 12 : 18;
+
+  drawGameTitle(doc, 'futoshiki', wMM);
+
+  const availableWidth = wMM - margin*2;
+  const availableHeight = hMM - PAGE_CONTENT_TOP - margin;
+  const gapRatio = 0.3;
+  let cellSize = Math.min(availableWidth, availableHeight) / (size * (1 + gapRatio) - gapRatio);
+  const maxCell = wMM < 160 ? 16 : 20;
+  if(cellSize > maxCell) cellSize = maxCell;
+  const gapSize = cellSize * gapRatio;
+
+  const totalWidth = size * cellSize + (size - 1) * gapSize;
+  const startX = (wMM - totalWidth) / 2;
+  const startY = PAGE_CONTENT_TOP + (availableHeight - totalWidth) / 2;
+
+  doc.setLineWidth(gridLineWidth(0.4));
+
+  for(let r = 0; r < size; r++){
+    for(let c = 0; c < size; c++){
+      const x = startX + c * (cellSize + gapSize);
+      const y = startY + r * (cellSize + gapSize);
+
+      doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+      doc.rect(x, y, cellSize, cellSize);
+
+      const val = data.grid[r][c];
+      const isVisible = data.mask[r][c];
+      if(isVisible){
+        applyPuzzleValueStyle(doc, cellSize, val);
+        doc.text(String(val), x + cellSize/2, y + cellSize/2, { align: 'center', baseline: 'middle' });
+      }
+
+      if(c < size - 1){
+        const sign = data.hIneq[r][c];
+        if(sign){
+          // Enlarged from cellSize * 0.4 so < and > remain readable in print.
+          applyRelationStyle(doc, 20, 16);
+          const gapX = x + cellSize + gapSize/2;
+          const gapY = y + cellSize/2;
+          doc.text(sign, gapX, gapY, { align: 'center', baseline: 'middle' });
+        }
+      }
+
+      if(r < size - 1){
+        const sign = data.vIneq[r][c];
+        if(sign){
+          const gapX = x + cellSize/2;
+          const gapY = y + cellSize + gapSize/2;
+          const armX = Math.min(gapSize * 0.48, cellSize * 0.22);
+          const armY = armX * 0.95;
+          doc.setDrawColor(50,50,50);
+          doc.setLineWidth(gridLineWidth(0.55));
+          if(sign === '<'){
+            doc.line(gapX - armX, gapY + armY, gapX, gapY - armY);
+            doc.line(gapX, gapY - armY, gapX + armX, gapY + armY);
+          } else {
+            doc.line(gapX - armX, gapY - armY, gapX, gapY + armY);
+            doc.line(gapX, gapY + armY, gapX + armX, gapY - armY);
+          }
+        }
+      }
+    }
+  }
+}
+
+/* ---------- Calcudoku (adapted from /calcudoku/index.html) ---------- */
+const CALCUDOKU_DIFFICULTY = {
+  easy:   { size: 4, opsMode: 'simple' },
+  medium: { size: 5, opsMode: 'medium' },
+  hard:   { size: 6, opsMode: 'full' }
+};
+
+function clcGenerateLatinSquare(size){
+  let grid = Array.from({ length: size }, () => Array(size).fill(0));
+
+  function isValid(r, c, val){
+    for(let k = 0; k < size; k++){
+      if(grid[r][k] === val) return false;
+      if(grid[k][c] === val) return false;
+    }
+    return true;
+  }
+
+  function fill(r, c){
+    if(r === size) return true;
+    let nextR = c === size - 1 ? r + 1 : r;
+    let nextC = c === size - 1 ? 0 : c + 1;
+
+    let nums = shuffle(Array.from({ length: size }, (_, i) => i + 1));
+
+    for(let num of nums){
+      if(isValid(r, c, num)){
+        grid[r][c] = num;
+        if(fill(nextR, nextC)) return true;
+        grid[r][c] = 0;
+      }
+    }
+    return false;
+  }
+
+  fill(0, 0);
+  return grid;
+}
+
+function clcGenerateCages(grid, size, opsMode){
+  let visited = Array.from({ length: size }, () => Array(size).fill(false));
+  let cages = [];
+
+  for(let r = 0; r < size; r++){
+    for(let c = 0; c < size; c++){
+      if(visited[r][c]) continue;
+
+      let currentCage = [];
+      let stack = [{ r, c }];
+      let maxSize = Math.floor(Math.random() * 3) + 2;
+      if(Math.random() > 0.8) maxSize = 1;
+
+      while(stack.length > 0 && currentCage.length < maxSize){
+        let curr = stack.pop();
+        if(visited[curr.r][curr.c]) continue;
+        visited[curr.r][curr.c] = true;
+        currentCage.push({ r: curr.r, c: curr.c, val: grid[curr.r][curr.c] });
+
+        let neighbors = shuffle([
+          { r: curr.r+1, c: curr.c }, { r: curr.r-1, c: curr.c },
+          { r: curr.r, c: curr.c+1 }, { r: curr.r, c: curr.c-1 }
+        ]);
+        for(let n of neighbors){
+          if(n.r >= 0 && n.r < size && n.c >= 0 && n.c < size && !visited[n.r][n.c]){
+            stack.push(n);
+            break;
+          }
+        }
+      }
+
+      let vals = currentCage.map(cell => cell.val);
+      let displayOp = '+';
+      let logicOp = '+';
+      let target = 0;
+
+      if(vals.length === 1){
+        displayOp = '';
+        target = vals[0];
+      } else {
+        let possibleOps = ['+'];
+        if(opsMode !== 'simple') possibleOps.push('-');
+        if(opsMode === 'full'){ possibleOps.push('*'); possibleOps.push('/'); }
+
+        let pick = possibleOps[Math.floor(Math.random() * possibleOps.length)];
+
+        if(pick === '/' && (vals.length !== 2 || Math.max(...vals) % Math.min(...vals) !== 0)) pick = '-';
+        if(pick === '-' && vals.length !== 2) pick = '+';
+
+        logicOp = pick;
+
+        if(logicOp === '+') displayOp = '+';
+        else if(logicOp === '-') displayOp = '-';
+        else if(logicOp === '*') displayOp = '×';
+        else if(logicOp === '/') displayOp = '÷';
+
+        if(logicOp === '+') target = vals.reduce((a,b) => a+b, 0);
+        else if(logicOp === '*') target = vals.reduce((a,b) => a*b, 1);
+        else if(logicOp === '-') target = Math.max(...vals) - Math.min(...vals);
+        else if(logicOp === '/') target = Math.max(...vals) / Math.min(...vals);
+      }
+      cages.push({ cells: currentCage, target, op: displayOp });
+    }
+  }
+
+  let cageGrid = Array.from({ length: size }, () => Array(size).fill(null));
+  cages.forEach((cage, index) => {
+    cage.cells.forEach(cell => {
+      cageGrid[cell.r][cell.c] = { id: index, target: cage.target, op: cage.op, isTopLeft: false };
+    });
+    cage.cells.sort((a,b) => (a.r - b.r) || (a.c - b.c));
+    cageGrid[cage.cells[0].r][cage.cells[0].c].isTopLeft = true;
+  });
+
+  return { grid, cages, cageGrid, size };
+}
+
+function clcCreatePuzzle(difficulty){
+  const cfg = CALCUDOKU_DIFFICULTY[difficulty] || CALCUDOKU_DIFFICULTY.medium;
+  const latinGrid = clcGenerateLatinSquare(cfg.size);
+  return clcGenerateCages(latinGrid, cfg.size, cfg.opsMode);
+}
+
+function clcDrawPage(doc, data, wMM, hMM){
+  if(!data || !data.cageGrid){
+    drawFallbackPage(doc, gameName('calcudoku'), 'Could not generate a Calcudoku grid.', wMM, hMM);
+    return;
+  }
+  const size = data.size;
+  const margin = wMM < 160 ? 12 : 18;
+
+  drawGameTitle(doc, 'calcudoku', wMM);
+
+  const availableWidth = wMM - margin*2;
+  const availableHeight = hMM - PAGE_CONTENT_TOP - margin;
+  let cellSize = Math.min(availableWidth, availableHeight) / size;
+  const maxCell = wMM < 160 ? 22 : 26;
+  if(cellSize > maxCell) cellSize = maxCell;
+
+  const gridWidth = size * cellSize;
+  const gridHeight = size * cellSize;
+  const startX = (wMM - gridWidth) / 2;
+  const startY = PAGE_CONTENT_TOP + (availableHeight - gridHeight) / 2;
+
+  doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+  doc.setTextColor(0,0,0);
+
+  const thick = Math.max(cellSize * 0.045, 0.5);
+  const thin = Math.max(cellSize * 0.01, 0.12);
+  const dash = Math.max(cellSize * 0.08, 0.8);
+
+  for(let r = 0; r < size; r++){
+    for(let c = 0; c < size; c++){
+      const x = startX + c * cellSize;
+      const y = startY + r * cellSize;
+      const cellData = data.cageGrid[r][c];
+
+      if(cellData.isTopLeft){
+        applyPuzzleValueStyle(doc, cellSize, `${cellData.target}${cellData.op}`, 'clue');
+        doc.text(`${cellData.target}${cellData.op}`, x + cellSize*0.08, y + cellSize*0.22);
+      }
+
+      if(r === 0 || data.cageGrid[r-1][c].id !== cellData.id){
+        doc.setLineWidth(thick);
+        doc.line(x, y, x + cellSize, y);
+      } else {
+        doc.setLineWidth(thin);
+        doc.setLineDash([dash, dash], 0);
+        doc.line(x, y, x + cellSize, y);
+        doc.setLineDash([]);
+      }
+      if(c === 0 || data.cageGrid[r][c-1].id !== cellData.id){
+        doc.setLineWidth(thick);
+        doc.line(x, y, x, y + cellSize);
+      } else {
+        doc.setLineWidth(thin);
+        doc.setLineDash([dash, dash], 0);
+        doc.line(x, y, x, y + cellSize);
+        doc.setLineDash([]);
+      }
+      if(c === size - 1 || data.cageGrid[r][c+1].id !== cellData.id){
+        doc.setLineWidth(thick);
+        doc.line(x + cellSize, y, x + cellSize, y + cellSize);
+      }
+      if(r === size - 1 || data.cageGrid[r+1][c].id !== cellData.id){
+        doc.setLineWidth(thick);
+        doc.line(x, y + cellSize, x + cellSize, y + cellSize);
+      }
+    }
+  }
+
+  doc.setLineWidth(thick);
+  doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+  doc.rect(startX, startY, gridWidth, gridHeight);
+}
+
+/* ---------- Jigsaw Sudoku (new full generator; original page was a placeholder) ---------- */
+const JIGSAW_REGION_MAP = [
+  [0,0,0,0,1,1,1,2,2],
+  [0,0,0,1,1,1,2,2,2],
+  [0,0,1,1,1,2,2,2,2],
+  [3,3,4,4,4,4,5,5,5],
+  [3,3,3,4,4,4,5,5,5],
+  [3,3,3,3,4,4,5,5,5],
+  [6,6,6,6,7,7,7,8,8],
+  [6,6,6,7,7,7,8,8,8],
+  [6,6,7,7,7,8,8,8,8]
+];
+const JIGSAW_HOLES = { easy: 38, medium: 48, hard: 55 };
+// Pre-solved against JIGSAW_REGION_MAP. Random digit remapping below creates
+// instant variations without the expensive 220k-node solve on every page.
+const JIGSAW_BASE_SOLUTION = [
+  [1,2,3,4,5,6,7,8,9],
+  [5,6,7,8,4,9,1,2,3],
+  [8,9,1,2,3,4,5,6,7],
+  [2,1,4,6,9,5,3,7,8],
+  [6,4,8,3,7,2,9,1,5],
+  [3,7,9,5,1,8,2,4,6],
+  [7,5,6,1,8,3,4,9,2],
+  [9,3,2,7,6,1,8,5,4],
+  [4,8,5,9,2,7,6,3,1]
+];
+
+function jigCandidates(grid, row, col){
+  const used = new Set();
+  for(let i = 0; i < 9; i++){
+    if(grid[row][i]) used.add(grid[row][i]);
+    if(grid[i][col]) used.add(grid[i][col]);
+  }
+  const region = JIGSAW_REGION_MAP[row][col];
+  for(let r = 0; r < 9; r++){
+    for(let c = 0; c < 9; c++){
+      if(JIGSAW_REGION_MAP[r][c] === region && grid[r][c]) used.add(grid[r][c]);
+    }
+  }
+  return shuffle([1,2,3,4,5,6,7,8,9].filter(n => !used.has(n)));
+}
+
+function jigSolve(grid){
+  let best = null;
+  let bestCandidates = null;
+  for(let r = 0; r < 9; r++){
+    for(let c = 0; c < 9; c++){
+      if(grid[r][c] !== 0) continue;
+      const candidates = jigCandidates(grid, r, c);
+      if(candidates.length === 0) return false;
+      if(!best || candidates.length < bestCandidates.length){
+        best = { r, c };
+        bestCandidates = candidates;
+        if(candidates.length === 1) break;
+      }
+    }
+    if(bestCandidates && bestCandidates.length === 1) break;
+  }
+  if(!best) return true;
+  for(const value of bestCandidates){
+    grid[best.r][best.c] = value;
+    if(jigSolve(grid)) return true;
+    grid[best.r][best.c] = 0;
+  }
+  return false;
+}
+
+function jigCreatePuzzle(difficulty){
+  const remap = shuffle([1,2,3,4,5,6,7,8,9]);
+  const solution = JIGSAW_BASE_SOLUTION.map(row => row.map(value => remap[value - 1]));
+  const puzzle = solution.map(row => row.slice());
+  const holes = JIGSAW_HOLES[difficulty] || JIGSAW_HOLES.medium;
+  shuffle(Array.from({length:81}, (_,i) => i)).slice(0, holes).forEach(index => {
+    puzzle[Math.floor(index / 9)][index % 9] = 0;
+  });
+  return { solution, puzzle };
+}
+
+function jigDrawPage(doc, data, wMM, hMM){
+  const margin = wMM < 160 ? 12 : 18;
+  drawGameTitle(doc, 'jigsawsudoku', wMM);
+  const availableH = hMM - PAGE_CONTENT_TOP - margin;
+  const cellSize = Math.min(wMM - margin * 2, availableH) / 9;
+  const gridSize = cellSize * 9;
+  const startX = (wMM - gridSize) / 2;
+  const startY = PAGE_CONTENT_TOP + (availableH - gridSize) / 2;
+
+  doc.setDrawColor(...VISUAL_STYLE.colors.gridLight);
+  doc.setLineWidth(gridLineWidth(VISUAL_STYLE.borders.thinMM));
+  for(let r = 0; r < 9; r++){
+    for(let c = 0; c < 9; c++){
+      const x = startX + c * cellSize;
+      const y = startY + r * cellSize;
+      doc.rect(x, y, cellSize, cellSize);
+      if(data.puzzle[r][c]){
+        applyPuzzleValueStyle(doc, cellSize, data.puzzle[r][c]);
+        doc.text(String(data.puzzle[r][c]), x + cellSize/2, y + cellSize/2, {align:'center', baseline:'middle'});
+      }
+    }
+  }
+
+  doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+  doc.setLineWidth(gridLineWidth(1.05));
+  for(let r = 0; r < 9; r++){
+    for(let c = 0; c < 9; c++){
+      const id = JIGSAW_REGION_MAP[r][c];
+      const x = startX + c * cellSize;
+      const y = startY + r * cellSize;
+      if(r === 0 || JIGSAW_REGION_MAP[r-1][c] !== id) doc.line(x, y, x + cellSize, y);
+      if(c === 0 || JIGSAW_REGION_MAP[r][c-1] !== id) doc.line(x, y, x, y + cellSize);
+      if(r === 8 || JIGSAW_REGION_MAP[r+1][c] !== id) doc.line(x, y + cellSize, x + cellSize, y + cellSize);
+      if(c === 8 || JIGSAW_REGION_MAP[r][c+1] !== id) doc.line(x + cellSize, y, x + cellSize, y + cellSize);
+    }
+  }
+}
+
+/* ---------- True / False (new full generator; original page was a placeholder) ---------- */
+const VF_COUNT = { easy: 10, medium: 12, hard: 16 };
+
+function vfCreateStatement(difficulty, shouldBeTrue){
+  let a, b, operator, correct;
+  const roll = Math.random();
+  if(difficulty === 'easy' || roll < 0.45){
+    operator = Math.random() < 0.55 ? '+' : '−';
+    a = Math.floor(Math.random() * 30) + 5;
+    b = Math.floor(Math.random() * 15) + 1;
+    if(operator === '−' && b > a) [a,b] = [b,a];
+    correct = operator === '+' ? a + b : a - b;
+  }else if(difficulty === 'medium' || roll < 0.8){
+    operator = '×';
+    a = Math.floor(Math.random() * 11) + 2;
+    b = Math.floor(Math.random() * 11) + 2;
+    correct = a * b;
+  }else{
+    operator = '÷';
+    b = Math.floor(Math.random() * 8) + 2;
+    correct = Math.floor(Math.random() * 10) + 2;
+    a = b * correct;
+  }
+  let shown = correct;
+  if(!shouldBeTrue){
+    const delta = shuffle([-4,-3,-2,-1,1,2,3,4]).find(d => correct + d >= 0);
+    shown = correct + delta;
+  }
+  return { expression: `${a} ${operator} ${b} = ${shown}`, answer: shouldBeTrue };
+}
+
+function vfCreatePuzzle(difficulty){
+  const count = VF_COUNT[difficulty] || VF_COUNT.medium;
+  return {
+    statements: Array.from({length:count}, (_,index) => vfCreateStatement(difficulty, index % 2 === 0)).sort(() => Math.random() - 0.5)
+  };
+}
+
+function vfDrawPage(doc, data, wMM, hMM){
+  const margin = wMM < 160 ? 12 : 18;
+  drawGameTitle(doc, 'vraisfaux', wMM);
+  doc.setFont(VISUAL_STYLE.fonts.family, 'normal');
+  doc.setFontSize(wMM < 160 ? 9 : 10);
+  doc.setTextColor(75,75,75);
+  doc.text(t('vfInstruction'), wMM/2, PAGE_TITLE_Y + 6, {align:'center'});
+
+  const columns = data.statements.length > 12 ? 2 : 1;
+  const rows = Math.ceil(data.statements.length / columns);
+  const gap = 10;
+  const contentW = wMM - margin * 2;
+  const colW = (contentW - (columns - 1) * gap) / columns;
+  const top = PAGE_CONTENT_TOP + 5;
+  const rowH = (hMM - top - margin) / rows;
+
+  data.statements.forEach((item,index) => {
+    const col = Math.floor(index / rows);
+    const row = index % rows;
+    const x = margin + col * (colW + gap);
+    const y = top + row * rowH;
+    doc.setDrawColor(...VISUAL_STYLE.colors.gridLight);
+    doc.setLineWidth(gridLineWidth(0.25));
+    doc.roundedRect(x, y, colW, rowH - 2, 1.5, 1.5);
+
+    applyPuzzleValueStyle(doc, Math.min(16, rowH), item.expression);
+    doc.text(`${index + 1}.  ${item.expression}`, x + 3, y + rowH * 0.43);
+
+    const box = Math.min(4, rowH * 0.22);
+    const checkY = y + rowH * 0.63;
+    doc.setFont(VISUAL_STYLE.fonts.family, 'bold');
+    doc.setFontSize(columns === 2 ? 7.5 : 9);
+    doc.rect(x + 4, checkY, box, box);
+    doc.text(t('vfTrue'), x + 4 + box + 2, checkY + box * 0.8);
+    const falseX = x + colW * 0.48;
+    doc.rect(falseX, checkY, box, box);
+    doc.text(t('vfFalse'), falseX + box + 2, checkY + box * 0.8);
+  });
+}
+
+/* ---------- Flag games (self-contained vector flags; no network images needed) ---------- */
+const FLAG_LIBRARY = [
+  { names:{en:'France',de:'Frankreich',it:'Francia'}, kind:'vertical', colors:['#0055A4','#FFFFFF','#EF4135'] },
+  { names:{en:'Italy',de:'Italien',it:'Italia'}, kind:'vertical', colors:['#009246','#FFFFFF','#CE2B37'] },
+  { names:{en:'Belgium',de:'Belgien',it:'Belgio'}, kind:'vertical', colors:['#111111','#FDDA24','#EF3340'] },
+  { names:{en:'Ireland',de:'Irland',it:'Irlanda'}, kind:'vertical', colors:['#169B62','#FFFFFF','#FF883E'] },
+  { names:{en:'Romania',de:'Rumänien',it:'Romania'}, kind:'vertical', colors:['#002B7F','#FCD116','#CE1126'] },
+  { names:{en:'Germany',de:'Deutschland',it:'Germania'}, kind:'horizontal', colors:['#111111','#DD0000','#FFCE00'] },
+  { names:{en:'Netherlands',de:'Niederlande',it:'Paesi Bassi'}, kind:'horizontal', colors:['#AE1C28','#FFFFFF','#21468B'] },
+  { names:{en:'Austria',de:'Österreich',it:'Austria'}, kind:'horizontal', colors:['#ED2939','#FFFFFF','#ED2939'] },
+  { names:{en:'Poland',de:'Polen',it:'Polonia'}, kind:'horizontal2', colors:['#FFFFFF','#DC143C'] },
+  { names:{en:'Ukraine',de:'Ukraine',it:'Ucraina'}, kind:'horizontal2', colors:['#0057B7','#FFD700'] },
+  { names:{en:'Spain',de:'Spanien',it:'Spagna'}, kind:'spain', colors:['#AA151B','#F1BF00'] },
+  { names:{en:'Japan',de:'Japan',it:'Giappone'}, kind:'circle', colors:['#FFFFFF','#BC002D'] },
+  { names:{en:'Switzerland',de:'Schweiz',it:'Svizzera'}, kind:'swiss', colors:['#D52B1E','#FFFFFF'] },
+  { names:{en:'Sweden',de:'Schweden',it:'Svezia'}, kind:'cross', colors:['#006AA7','#FECC00'] },
+  { names:{en:'Finland',de:'Finnland',it:'Finlandia'}, kind:'cross', colors:['#FFFFFF','#003580'] },
+  { names:{en:'Denmark',de:'Dänemark',it:'Danimarca'}, kind:'cross', colors:['#C60C30','#FFFFFF'] },
+  { names:{en:'Norway',de:'Norwegen',it:'Norvegia'}, kind:'doublecross', colors:['#BA0C2F','#FFFFFF','#00205B'] }
+];
+const FLAG_COUNT = { easy: 3, medium: 4, hard: 5 };
+
+function flagSetFill(doc, hex){
+  doc.setFillColor(...hexToRgb(hex));
+}
+
+function drawCountryFlag(doc, flag, x, y, w, h){
+  const colors = flag.colors;
+  if(flag.kind === 'vertical'){
+    colors.forEach((color,index) => { flagSetFill(doc,color); doc.rect(x + index*w/3, y, w/3 + 0.05, h, 'F'); });
+  }else if(flag.kind === 'horizontal'){
+    colors.forEach((color,index) => { flagSetFill(doc,color); doc.rect(x, y + index*h/3, w, h/3 + 0.05, 'F'); });
+  }else if(flag.kind === 'horizontal2'){
+    colors.forEach((color,index) => { flagSetFill(doc,color); doc.rect(x, y + index*h/2, w, h/2 + 0.05, 'F'); });
+  }else if(flag.kind === 'spain'){
+    flagSetFill(doc,colors[0]); doc.rect(x,y,w,h,'F');
+    flagSetFill(doc,colors[1]); doc.rect(x,y+h*0.25,w,h*0.5,'F');
+  }else if(flag.kind === 'circle'){
+    flagSetFill(doc,colors[0]); doc.rect(x,y,w,h,'F');
+    flagSetFill(doc,colors[1]); doc.circle(x+w/2,y+h/2,h*0.26,'F');
+  }else if(flag.kind === 'swiss'){
+    flagSetFill(doc,colors[0]); doc.rect(x,y,w,h,'F');
+    flagSetFill(doc,colors[1]);
+    doc.rect(x+w*0.42,y+h*0.20,w*0.16,h*0.60,'F');
+    doc.rect(x+w*0.25,y+h*0.41,w*0.50,h*0.18,'F');
+  }else if(flag.kind === 'cross'){
+    flagSetFill(doc,colors[0]); doc.rect(x,y,w,h,'F');
+    flagSetFill(doc,colors[1]);
+    doc.rect(x+w*0.30,y,w*0.12,h,'F');
+    doc.rect(x,y+h*0.42,w,h*0.16,'F');
+  }else if(flag.kind === 'doublecross'){
+    flagSetFill(doc,colors[0]); doc.rect(x,y,w,h,'F');
+    flagSetFill(doc,colors[1]);
+    doc.rect(x+w*0.27,y,w*0.18,h,'F'); doc.rect(x,y+h*0.39,w,h*0.22,'F');
+    flagSetFill(doc,colors[2]);
+    doc.rect(x+w*0.315,y,w*0.09,h,'F'); doc.rect(x,y+h*0.455,w,h*0.11,'F');
+  }
+  doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+  doc.setLineWidth(gridLineWidth(0.35));
+  doc.rect(x,y,w,h,'S');
+}
+
+function flagPick(difficulty){
+  const count = FLAG_COUNT[difficulty] || FLAG_COUNT.medium;
+  return shuffle(FLAG_LIBRARY).slice(0,count);
+}
+
+function guessFlagDrawPage(doc, countries, wMM, hMM){
+  const margin = wMM < 160 ? 12 : 18;
+  drawGameTitle(doc, 'guessflag', wMM);
+  doc.setFont(VISUAL_STYLE.fonts.family,'normal'); doc.setFontSize(9); doc.setTextColor(70,70,70);
+  doc.text(t('flagGuessInstruction'),wMM/2,PAGE_TITLE_Y+6,{align:'center'});
+  const top = PAGE_CONTENT_TOP + 3;
+  const availableH = hMM - top - margin;
+  const rowH = availableH / countries.length;
+  const flagH = Math.min(rowH * 0.58, 30);
+  const flagW = flagH * 1.55;
+  countries.forEach((country,index) => {
+    const y = top + index*rowH;
+    drawCountryFlag(doc,country,(wMM-flagW)/2,y,flagW,flagH);
+    applyRelationStyle(doc, 8, 12);
+    doc.text(`${index+1}.`, (wMM-flagW)/2 - 5, y + flagH/2, {align:'right',baseline:'middle'});
+    doc.setDrawColor(...VISUAL_STYLE.colors.grid);
+    doc.setLineWidth(gridLineWidth(0.45));
+    doc.line(wMM*0.25,y+flagH+6,wMM*0.75,y+flagH+6);
+  });
+}
+
+function flagMatchCreate(difficulty){
+  const countries = flagPick(difficulty);
+  return { countries, names: shuffle(countries.map(country => country.names)) };
+}
+
+function flagMatchDrawPage(doc, data, wMM, hMM){
+  const margin = wMM < 160 ? 12 : 18;
+  drawGameTitle(doc, 'flag', wMM);
+  doc.setFont(VISUAL_STYLE.fonts.family,'normal'); doc.setFontSize(9); doc.setTextColor(70,70,70);
+  doc.text(t('flagMatchInstruction'),wMM/2,PAGE_TITLE_Y+6,{align:'center'});
+  const top = PAGE_CONTENT_TOP + 4;
+  const availableH = hMM - top - margin;
+  const rowH = availableH / data.countries.length;
+  const flagH = Math.min(rowH*0.56,25);
+  const flagW = flagH*1.55;
+  data.countries.forEach((country,index) => {
+    const y = top + index*rowH;
+    applyRelationStyle(doc,8,13);
+    doc.text(`${index+1}.`,margin,y+flagH/2,{baseline:'middle'});
+    drawCountryFlag(doc,country,margin+9,y,flagW,flagH);
+    doc.setDrawColor(...VISUAL_STYLE.colors.gridLight);
+    doc.line(margin+12+flagW,y+flagH/2,wMM*0.52,y+flagH/2);
+  });
+  data.names.forEach((names,index) => {
+    const y = top + index*rowH + flagH/2;
+    doc.setFont(state.puzzleStyle.fontFamily,'bold');
+    doc.setFontSize(Math.min(14,state.puzzleStyle.fontSizePt));
+    doc.setTextColor(...hexToRgb(state.puzzleStyle.color));
+    doc.text(`${String.fromCharCode(65+index)}. ${names[state.language] || names.en}`,wMM*0.57,y,{baseline:'middle'});
+  });
+}
+
+/* ---------- Module registry ---------- */
+const GameModules = {
+  wordsearch: {
+    needsWords: true,
+    generate(difficulty){
+      const cfg = WS_DIFFICULTY[difficulty] || WS_DIFFICULTY.medium;
+      const chosen = pickWords(cfg.count).map(w => normalizeForGrid(w.word));
+      return wsCreatePuzzle(chosen, cfg.size, cfg.size, WS_DIRS);
+    },
+    draw: wsDrawPage
+  },
+  sudoku: {
+    needsWords: false,
+    generate(difficulty){ return suCreatePuzzle(difficulty); },
+    draw: suDrawPage
+  },
+  maze: {
+    needsWords: false,
+    generate(difficulty){
+      const size = MAZE_DIFFICULTY[difficulty] || MAZE_DIFFICULTY.medium;
+      const shape = MAZE_SHAPES[Math.floor(Math.random() * MAZE_SHAPES.length)];
+      const maze = new KdpMaze(size, size, shape);
+      maze.generate();
+      maze.solve();
+      return { maze, shape };
+    },
+    draw: mzDrawPage
+  },
+  kakuro: {
+    needsWords: false,
+    generate(difficulty){ return kakGenerate(difficulty); },
+    draw: kakDrawPage
+  },
+  summenratsel: {
+    needsWords: false,
+    generate(difficulty){ return sumGenerate(difficulty); },
+    draw: sumDrawPage
+  },
+  binoxo: {
+    needsWords: false,
+    generate(difficulty){ return bnxGenerate(difficulty); },
+    draw: bnxDrawPage
+  },
+  crosssudoku: {
+    needsWords: false,
+    generate(difficulty){ return csuCreatePuzzle(difficulty); },
+    draw: csuDrawPage
+  },
+  killersudoku: {
+    needsWords: false,
+    generate(difficulty){ return ksuCreatePuzzle(difficulty); },
+    draw: ksuDrawPage
+  },
+  flowersudoku: {
+    needsWords: false,
+    generate(difficulty){ return fsuCreatePuzzle(difficulty); },
+    draw: fsuDrawPage
+  },
+  crackthecode: {
+    needsWords: false,
+    generate(difficulty){ return crkCreatePuzzle(difficulty); },
+    draw: crkDrawPage
+  },
+  futoshiki: {
+    needsWords: false,
+    generate(difficulty){ return futCreatePuzzle(difficulty); },
+    draw: futDrawPage
+  },
+  calcudoku: {
+    needsWords: false,
+    generate(difficulty){ return clcCreatePuzzle(difficulty); },
+    draw: clcDrawPage
+  },
+  anagram: {
+    needsWords: true,
+    generate(difficulty){ return anaGenerate(difficulty); },
+    draw: anaDrawPage
+  },
+  numbersearch: {
+    needsWords: false,
+    generate(difficulty){ return nsrGenerate(difficulty); },
+    draw: nsrDrawPage
+  },
+  mathmatrix: {
+    needsWords: false,
+    generate(difficulty){ return mmxGenerate(difficulty); },
+    draw: mmxDrawPage
+  },
+  pyramid: {
+    needsWords: false,
+    generate(difficulty){ return pyrGenerate(difficulty); },
+    draw: pyrDrawPage
+  },
+  jigsawsudoku: {
+    needsWords: false,
+    generate(difficulty){ return jigCreatePuzzle(difficulty); },
+    draw: jigDrawPage
+  },
+  vraisfaux: {
+    needsWords: false,
+    generate(difficulty){ return vfCreatePuzzle(difficulty); },
+    draw: vfDrawPage
+  },
+  guessflag: {
+    needsWords: false,
+    generate(difficulty){ return flagPick(difficulty); },
+    draw: guessFlagDrawPage
+  },
+  flag: {
+    needsWords: false,
+    generate(difficulty){ return flagMatchCreate(difficulty); },
+    draw: flagMatchDrawPage
+  }
+};
+
+/* =====================================================================
+   PAGE SEQUENCE (shared by Preview + PDF export)
+===================================================================== */
+function createBackgroundPicker(){
+  let deck = [];
+  let last = null;
+  return () => {
+    if(!state.patterns.length) return null;
+    if(!deck.length){
+      deck = shuffle(state.patterns);
+      // Avoid an immediate repeat where two shuffled cycles meet.
+      if(deck.length > 1 && deck[0] === last){
+        [deck[0], deck[1]] = [deck[1], deck[0]];
+      }
+    }
+    last = deck.shift();
+    return last;
+  };
+}
+
+function composePageDraw(contentDraw, background){
+  return (doc, wMM, hMM) => {
+    drawPageBackground(doc, background, wMM, hMM);
+    contentDraw(doc, wMM, hMM);
+  };
+}
+
+function buildGeneratedPages(){
+  const pages = [];
+  const selected = state.selectedGames;
+
+  if(selected.length === 0){
+    state.generatedPages = pages;
+    return;
+  }
+
+  let gameCounter = 0;
+  const nextBackground = createBackgroundPicker();
+  for(let day = 1; day <= TOTAL_DAYS; day++){
+    const numberBackground = nextBackground();
+    pages.push({
+      type: 'number', day, icon: '#️⃣', label: `Day ${day}`,
+      backgroundName: numberBackground ? numberBackground.name : null,
+      draw: composePageDraw(
+        (doc, wMM, hMM) => drawNumberPage(doc, day, state.numberStyle, wMM, hMM),
+        numberBackground
+      )
+    });
+
+    for(let i = 0; i < state.gamesPerPage; i++){
+      const gsel = selected[gameCounter % selected.length];
+      const meta = GAMES.find(g => g.id === gsel.id);
+      const label = gameName(gsel.id);
+      const mod = GameModules[gsel.id];
+
+      let drawFn;
+      try{
+        const data = mod.generate(gsel.difficulty);
+        drawFn = (doc, wMM, hMM) => mod.draw(doc, data, wMM, hMM);
+      }catch(err){
+        console.error(gsel.id + ' generation failed:', err);
+        drawFn = (doc, wMM, hMM) => drawFallbackPage(doc, label, 'Could not generate this puzzle: ' + err.message, wMM, hMM);
+      }
+
+      const gameBackground = nextBackground();
+
+      pages.push({
+        type: 'game', day, gameId: gsel.id, gameName: label, icon: meta.icon,
+        difficulty: gsel.difficulty, label: `Day ${day} · ${label}`,
+        backgroundName: gameBackground ? gameBackground.name : null,
+        draw: composePageDraw(drawFn, gameBackground)
+      });
+      gameCounter++;
+    }
+  }
+
+  state.generatedPages = pages;
+}
+
+/* =====================================================================
+   STEP 4 — PREVIEW
+===================================================================== */
+function renderPreview(){
+  const strip = document.getElementById('preview-strip');
+  const summary = document.getElementById('preview-summary');
+  strip.innerHTML = '';
+
+  if(state.generatedPages.length === 0){
+    strip.innerHTML = '<p style="color:#6b7280;padding:20px;">No pages to show — go back and select at least one game.</p>';
+    summary.innerHTML = '';
+    return;
+  }
+
+  summary.innerHTML = `
+    <span>${state.generatedPages.length} pages total • ${TOTAL_DAYS} days</span>
+    <span>Size: ${state.bookSize.label} (${state.bookSize.wIn}" × ${state.bookSize.hIn}")</span>
+  `;
+
+  state.generatedPages.forEach((page, idx) => {
+    const card = document.createElement('div');
+    card.className = 'page-card' + (page.type === 'number' ? ' is-number' : '');
+    card.onclick = () => openModal(idx);
+    card.innerHTML = `
+      <div class="page-card-icon">${page.icon}</div>
+      <div class="page-card-day">Day ${page.day}</div>
+      <div class="page-card-label">${page.type === 'number' ? 'Number' : page.gameName}</div>
+    `;
+    strip.appendChild(card);
+  });
+}
+
+/* =====================================================================
+   MODAL (enlarged page) — renders a real single-page PDF on demand and
+   embeds it via iframe, so what you see is exactly what will print.
+===================================================================== */
+function openModal(index){
+  modalPageIndex = index;
+  renderModalPage();
+  document.getElementById('modal-overlay').classList.add('visible');
+}
+
+function closeModal(){
+  document.getElementById('modal-overlay').classList.remove('visible');
+}
+
+function modalNav(dir){
+  const total = state.generatedPages.length;
+  modalPageIndex = (modalPageIndex + dir + total) % total;
+  renderModalPage();
+}
+
+function renderModalPage(){
+  const page = state.generatedPages[modalPageIndex];
+  if(!page) return;
+
+  document.getElementById('modal-title').textContent = page.label;
+
+  const { jsPDF } = window.jspdf;
+  const { w, h } = bookSizeMM();
+  const orientation = w > h ? 'l' : 'p';
+  const doc = new jsPDF({ unit: 'mm', format: [w, h], orientation });
+
+  try{ page.draw(doc, w, h); }
+  catch(err){ drawFallbackPage(doc, page.label, 'Render error: ' + err.message, w, h); }
+
+  const dataUri = doc.output('datauristring');
+
+  const maxBoxW = Math.min(window.innerWidth * 0.6, 520);
+  const maxBoxH = window.innerHeight * 0.72;
+  const scale = Math.min(maxBoxW / w, maxBoxH / h);
+  const boxW = w * scale, boxH = h * scale;
+
+  document.getElementById('modal-body').innerHTML =
+    `<iframe src="${dataUri}#toolbar=0&navpanes=0" style="width:${boxW}px;height:${boxH}px;border:none;"></iframe>`;
+}
+
+document.addEventListener('keydown', (e) => {
+  if(!document.getElementById('modal-overlay').classList.contains('visible')) return;
+  if(e.key === 'Escape') closeModal();
+  if(e.key === 'ArrowRight') modalNav(1);
+  if(e.key === 'ArrowLeft') modalNav(-1);
+});
+
+/* =====================================================================
+   STEP 5 — PDF EXPORT
+===================================================================== */
+function startPdfGeneration(){
+  if(state.generatedPages.length === 0){
+    toast('Nothing to export — please select at least one game first.', 'error');
+    return;
+  }
+  goToStep(5);
+  generatePdf();
+}
+
+function setProgress(pct, label){
+  document.getElementById('progress-fill').style.width = pct + '%';
+  document.getElementById('progress-status').textContent = label;
+}
+
+// Builds one shared jsPDF document, drawing every page's vector content
+// directly onto it in order — no rasterization, so output stays crisp and
+// the file size stays small even for a 48-96 page book.
+async function generatePdf(){
+  document.getElementById('export-progress-view').style.display = 'block';
+  document.getElementById('export-success').classList.remove('visible');
+  setProgress(0, 'Preparing...');
+
+  const { jsPDF } = window.jspdf;
+  const { w, h } = bookSizeMM();
+  const orientation = w > h ? 'l' : 'p';
+  const doc = new jsPDF({ unit: 'mm', format: [w, h], orientation });
+
+  const total = state.generatedPages.length;
+
+  try{
+    for(let i = 0; i < total; i++){
+      if(i > 0) doc.addPage([w, h], orientation);
+      const page = state.generatedPages[i];
+      try{ page.draw(doc, w, h); }
+      catch(err){
+        console.error('Draw failed for page', i, err);
+        drawFallbackPage(doc, page.label || 'Page', 'Render error: ' + err.message, w, h);
+      }
+
+      setProgress(Math.round(((i + 1) / total) * 95), `Rendering page ${i + 1} of ${total}...`);
+      if(i % 4 === 0) await new Promise(r => setTimeout(r, 0)); // yield so the bar repaints
+    }
+
+    setProgress(98, 'Finalizing PDF document...');
+    const blob = doc.output('blob');
+    state.pdfBlob = blob;
+    setProgress(100, 'Done!');
+    onPdfReady();
+  }catch(err){
+    console.error('PDF generation failed:', err);
+    setProgress(0, 'Failed to generate PDF.');
+    toast('PDF generation failed: ' + err.message, 'error');
+  }
+}
+
+function onPdfReady(){
+  const pages = state.generatedPages.length;
+  document.getElementById('export-success-sub').textContent =
+    `${pages} pages • ${state.bookSize.label} • Digital (No Bleed)`;
+  document.getElementById('export-success').classList.add('visible');
+  toast('PDF generated successfully!', 'success');
+}
+
+function downloadPdf(){
+  if(!state.pdfBlob){
+    toast('PDF is not ready yet.', 'error');
+    return;
+  }
+  const url = URL.createObjectURL(state.pdfBlob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `advent-calendar-${state.bookSize.wIn}x${state.bookSize.hIn}-digital.pdf`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
+}
+
+function startOver(){
+  state.niche = '';
+  state.apiKey = '';
+  state.words = [];
+  state.selectedGames = [];
+  state.gamesPerPage = 1;
+  state.patterns = [];
+  state.generatedPages = [];
+  state.pdfBlob = null;
+  state.currentStep = 1;
+  state.maxStepReached = 1;
+
+  document.getElementById('niche-input').value = '';
+  document.getElementById('apikey-input').value = '';
+  document.getElementById('words-box').innerHTML = '';
+  document.getElementById('games-per-number').value = '1';
+  document.getElementById('background-opacity').value = Math.round(VISUAL_STYLE.page.imageOpacity * 100);
+  document.getElementById('background-mode').value = VISUAL_STYLE.page.imageMode;
+  document.getElementById('pattern-input').value = '';
+  renderPatternPreview();
+  updateBackgroundStyle();
+  document.querySelectorAll('.game-card').forEach(c => {
+    c.classList.remove('on');
+    c.querySelector('input[type=checkbox]').checked = false;
+  });
+  updateSelectedGameCount();
+  document.getElementById('export-success').classList.remove('visible');
+  setProgress(0, 'Waiting to start...');
+
+  goToStep(1);
+  toast('Ready for a new project.', 'success');
+}
+
+/* =====================================================================
+   UTILITIES: TOASTS + LOADING
+===================================================================== */
+function toast(message, type){
+  const container = document.getElementById('toast-container');
+  const el = document.createElement('div');
+  el.className = 'toast' + (type ? ' ' + type : '');
+  el.textContent = message;
+  container.appendChild(el);
+  setTimeout(() => el.remove(), 3800);
+}
+
+function showLoading(text){
+  document.getElementById('loading-text').textContent = text || 'Loading...';
+  document.getElementById('loading-overlay').classList.add('visible');
+}
+
+function hideLoading(){
+  document.getElementById('loading-overlay').classList.remove('visible');
+}
+</script>
+</body>
+</html>

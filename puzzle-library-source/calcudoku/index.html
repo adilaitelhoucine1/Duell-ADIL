@@ -1,0 +1,623 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calcudoku Generator (6x9)</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root {
+            --font-main: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            --primary-color: #2c3e50;
+            --accent-blue: #3498db;
+            --accent-green: #27ae60;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: #f4f4f9;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+
+        h1 { margin-bottom: 20px; color: var(--primary-color); }
+
+        /* --- CONTROL PANEL --- */
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+            flex-wrap: wrap;
+            max-width: 1000px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        label { font-weight: bold; font-size: 0.8rem; color: #555; }
+        
+        select, input[type="number"], input[type="text"] {
+            padding: 8px;
+            border-radius: 6px;
+            border: 1px solid #ccc;
+            font-size: 14px;
+            width: 120px;
+        }
+
+        /* Checkbox styling */
+        .checkbox-group {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: 5px;
+            height: 38px;
+            background: #eee;
+            padding: 0 10px;
+            border-radius: 6px;
+        }
+        input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
+        button {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+            color: white;
+            transition: transform 0.1s, opacity 0.2s;
+            height: 40px; 
+            margin-bottom: 2px;
+        }
+
+        button:active { transform: scale(0.98); }
+        button:hover { opacity: 0.9; }
+
+        .btn-preview { background-color: var(--accent-blue); }
+        .btn-pdf { background-color: var(--accent-green); }
+
+        /* --- PREVIEW AREA --- */
+        .preview-container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            background: #555; /* Dark background to see the page clearly */
+            border-radius: 8px;
+            overflow: auto;
+            max-width: 100%;
+        }
+        
+        .preview-label {
+            text-align: center;
+            margin-bottom: 15px;
+            font-weight: bold;
+            color: #fff;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        /* Sheet simulates 6x9 inches */
+        .sheet {
+            background: white;
+            /* 6 inch x 9 inch approx in px at 96dpi is 576 x 864 */
+            width: 6in; 
+            height: 9in; 
+            padding: 0; 
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center; 
+            /* Scale down for screen viewing */
+            transform: scale(0.8); 
+            transform-origin: top center;
+            margin-bottom: -150px; /* Counteract transform gap */
+        }
+
+        /* --- CALCUDOKU GRID --- */
+        .puzzle-wrapper {
+            display: grid;
+            gap: 0; 
+            border: 3px solid #000; 
+        }
+
+        .cell {
+            /* Width/Height set by JS based on grid size */
+            position: relative; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center;
+            font-weight: bold;
+            background: #fff;
+            box-sizing: border-box;
+            border-right: 1px dotted #ccc;
+            border-bottom: 1px dotted #ccc;
+        }
+
+        .target-label {
+            position: absolute;
+            top: 1px;
+            left: 3px;
+            font-size: 10px;
+            font-weight: normal;
+            color: #000;
+            z-index: 2;
+            font-family: 'Helvetica', sans-serif;
+        }
+
+        .cell-content {
+            z-index: 1;
+            color: #000;
+            line-height: 1;
+        }
+
+        /* Border Utilities */
+        .border-top-thick { border-top: 2px solid #000 !important; }
+        .border-left-thick { border-left: 2px solid #000 !important; }
+        .border-right-thick { border-right: 2px solid #000 !important; }
+        .border-bottom-thick { border-bottom: 2px solid #000 !important; }
+
+    </style>
+</head>
+<body>
+
+    <h1>Calcudoku (6x9")</h1>
+
+    <div class="controls">
+        <div class="input-group">
+            <label>Grid Size</label>
+            <select id="gridSize">
+                <option value="4">4 x 4</option>
+                <option value="5" selected>5 x 5</option>
+                <option value="6">6 x 6</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Operations</label>
+            <select id="opsType">
+                <option value="simple">Add Only (+)</option>
+                <option value="medium">Add/Sub (+ -)</option>
+                <option value="full" selected>All (+ - × ÷)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Pages</label>
+            <input type="number" id="pageCount" value="5" min="1" max="50">
+        </div>
+
+        <div class="input-group">
+            <label>Font Size (pt)</label>
+            <!-- Added oninput to update instantly -->
+            <input type="number" id="numSize" value="24" min="10" max="80" oninput="updatePreviewStyle()">
+        </div>
+
+        <div class="input-group">
+            <label>Font Family</label>
+            <select id="fontFamily" onchange="updatePreviewStyle()">
+                <option value="helvetica" selected>Helvetica (Sans)</option>
+                <option value="times">Times (Serif)</option>
+                <option value="courier">Courier (Mono)</option>
+            </select>
+        </div>
+
+        <div class="input-group">
+            <label>Settings</label>
+            <div class="checkbox-group">
+                <label for="boldCheck" style="font-weight:normal; font-size:12px; cursor:pointer;">Bold Numbers</label>
+                <input type="checkbox" id="boldCheck" checked onchange="updatePreviewStyle()">
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label>Preview</label>
+            <div class="checkbox-group">
+                <label for="showSolPreview" style="font-weight:normal; font-size:12px; cursor:pointer;">Show Answer</label>
+                <input type="checkbox" id="showSolPreview" checked onchange="generatePreview(true)">
+            </div>
+        </div>
+
+        <button class="btn-preview" onclick="generatePreview()">New Puzzle</button>
+        <button class="btn-pdf" id="btnPdf" onclick="downloadPDF()">Download PDF (6x9")</button>
+    </div>
+
+    <div class="preview-container">
+        <div class="preview-label">Page Preview (6x9 Inches)</div>
+        <div class="sheet" id="previewSheet">
+            <div id="gridContainer" class="puzzle-wrapper"></div>
+        </div>
+    </div>
+
+    <script>
+        const { jsPDF } = window.jspdf;
+
+        // --- 1. LOGIC ---
+        function shuffle(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+
+        function generateLatinSquare(size) {
+            let grid = Array.from({ length: size }, () => Array(size).fill(0));
+
+            function isValid(r, c, val) {
+                for (let k = 0; k < size; k++) {
+                    if (grid[r][k] === val) return false;
+                    if (grid[k][c] === val) return false;
+                }
+                return true;
+            }
+
+            function fill(r, c) {
+                if (r === size) return true;
+                let nextR = c === size - 1 ? r + 1 : r;
+                let nextC = c === size - 1 ? 0 : c + 1;
+
+                let nums = Array.from({ length: size }, (_, i) => i + 1);
+                shuffle(nums);
+
+                for (let num of nums) {
+                    if (isValid(r, c, num)) {
+                        grid[r][c] = num;
+                        if (fill(nextR, nextC)) return true;
+                        grid[r][c] = 0;
+                    }
+                }
+                return false;
+            }
+
+            fill(0, 0);
+            return grid;
+        }
+
+        function generateCages(grid, size, opsMode) {
+            let visited = Array.from({ length: size }, () => Array(size).fill(false));
+            let cages = []; 
+            
+            for(let r=0; r<size; r++){
+                for(let c=0; c<size; c++){
+                    if(visited[r][c]) continue;
+
+                    let currentCage = [];
+                    let stack = [{r, c}];
+                    let maxSize = Math.floor(Math.random() * 3) + 2; 
+                    if(Math.random() > 0.8) maxSize = 1; 
+
+                    while(stack.length > 0 && currentCage.length < maxSize) {
+                        let curr = stack.pop();
+                        if(visited[curr.r][curr.c]) continue;
+                        visited[curr.r][curr.c] = true;
+                        currentCage.push({r: curr.r, c: curr.c, val: grid[curr.r][curr.c]});
+
+                        let neighbors = [
+                            {r: curr.r+1, c: curr.c}, {r: curr.r-1, c: curr.c},
+                            {r: curr.r, c: curr.c+1}, {r: curr.r, c: curr.c-1}
+                        ];
+                        shuffle(neighbors);
+                        for(let n of neighbors) {
+                            if(n.r>=0 && n.r<size && n.c>=0 && n.c<size && !visited[n.r][n.c]) {
+                                stack.push(n);
+                                break; 
+                            }
+                        }
+                    }
+
+                    let vals = currentCage.map(cell => cell.val);
+                    let displayOp = '+';
+                    let logicOp = '+'; 
+                    let target = 0;
+
+                    if (vals.length === 1) {
+                        displayOp = ''; 
+                        target = vals[0];
+                    } else {
+                        let possibleOps = ['+'];
+                        if (opsMode !== 'simple') possibleOps.push('-'); 
+                        if (opsMode === 'full') {
+                            possibleOps.push('*');
+                            possibleOps.push('/');
+                        }
+
+                        let pick = possibleOps[Math.floor(Math.random() * possibleOps.length)];
+                        
+                        if (pick === '/' && (vals.length !== 2 || Math.max(...vals) % Math.min(...vals) !== 0)) pick = '-';
+                        if (pick === '-' && vals.length !== 2) pick = '+'; 
+                        
+                        logicOp = pick;
+                        
+                        if (logicOp === '+') displayOp = '+';
+                        else if (logicOp === '-') displayOp = '-';
+                        else if (logicOp === '*') displayOp = '×';
+                        else if (logicOp === '/') displayOp = '÷';
+
+                        if (logicOp === '+') target = vals.reduce((a,b) => a+b, 0);
+                        else if (logicOp === '*') target = vals.reduce((a,b) => a*b, 1);
+                        else if (logicOp === '-') target = Math.max(...vals) - Math.min(...vals);
+                        else if (logicOp === '/') target = Math.max(...vals) / Math.min(...vals);
+                    }
+                    cages.push({ cells: currentCage, target, op: displayOp });
+                }
+            }
+
+            let cageGrid = Array.from({length: size}, () => Array(size).fill(null));
+            cages.forEach((cage, index) => {
+                cage.cells.forEach(cell => {
+                    cageGrid[cell.r][cell.c] = {
+                        id: index,
+                        target: cage.target,
+                        op: cage.op,
+                        isTopLeft: false
+                    };
+                });
+                cage.cells.sort((a,b) => (a.r - b.r) || (a.c - b.c));
+                cageGrid[cage.cells[0].r][cage.cells[0].c].isTopLeft = true;
+            });
+
+            return { grid, cages, cageGrid, size };
+        }
+
+        function createPuzzleData(size, opsMode) {
+            let latinGrid = generateLatinSquare(size);
+            return generateCages(latinGrid, size, opsMode);
+        }
+
+        // --- 2. HTML PREVIEW ---
+        let currentPreviewData = null;
+
+        function updatePreviewStyle() {
+            // This function updates the visual style without regenerating the puzzle
+            const fontSizeVal = document.getElementById('numSize').value;
+            const isBold = document.getElementById('boldCheck').checked;
+            const fontFam = document.getElementById('fontFamily').value;
+            
+            // Map simple values to CSS fonts
+            let cssFont = 'sans-serif';
+            if(fontFam === 'times') cssFont = '"Times New Roman", serif';
+            if(fontFam === 'courier') cssFont = '"Courier New", monospace';
+            if(fontFam === 'helvetica') cssFont = 'Helvetica, Arial, sans-serif';
+
+            const cells = document.querySelectorAll('.cell-content');
+            cells.forEach(el => {
+                el.style.fontSize = fontSizeVal + 'pt';
+                el.style.fontWeight = isBold ? 'bold' : 'normal';
+                el.style.fontFamily = cssFont;
+            });
+        }
+
+        function generatePreview(preserveData = false) {
+            const container = document.getElementById('gridContainer');
+            const size = parseInt(document.getElementById('gridSize').value);
+            const opsMode = document.getElementById('opsType').value;
+            const showSolution = document.getElementById('showSolPreview').checked;
+            
+            if (!preserveData || !currentPreviewData) {
+                currentPreviewData = createPuzzleData(size, opsMode);
+            }
+            const data = currentPreviewData;
+            
+            container.innerHTML = '';
+            container.style.gridTemplateColumns = `repeat(${size}, auto)`;
+            container.style.border = "3px solid #000";
+
+            // Determine preview cell size based on 6 inch width assumption
+            // In CSS 1in = 96px, so 6in = 576px. Margin = 0.5in on sides => 5in usable grid.
+            // 5in = 480px.
+            let pxSize = 480 / size; 
+
+            for (let r = 0; r < size; r++) {
+                for (let c = 0; c < size; c++) {
+                    let cellDiv = document.createElement('div');
+                    cellDiv.className = 'cell';
+                    cellDiv.style.width = pxSize + 'px';
+                    cellDiv.style.height = pxSize + 'px';
+
+                    const cellData = data.cageGrid[r][c];
+                    
+                    // Borders
+                    if (r === 0 || data.cageGrid[r-1][c].id !== cellData.id) cellDiv.classList.add('border-top-thick');
+                    if (c === 0 || data.cageGrid[r][c-1].id !== cellData.id) cellDiv.classList.add('border-left-thick');
+                    if (c === size-1 || data.cageGrid[r][c+1].id !== cellData.id) cellDiv.classList.add('border-right-thick');
+                    if (r === size-1 || data.cageGrid[r+1][c].id !== cellData.id) cellDiv.classList.add('border-bottom-thick');
+
+                    // Label (Target + Op)
+                    if (cellData.isTopLeft) {
+                        let span = document.createElement('span');
+                        span.className = 'target-label';
+                        span.innerText = `${cellData.target}${cellData.op}`;
+                        cellDiv.appendChild(span);
+                    }
+
+                    // Content (Solution Number)
+                    let content = document.createElement('div');
+                    content.className = 'cell-content';
+                    
+                    if (showSolution) {
+                        content.innerText = data.grid[r][c];
+                    } else {
+                        content.innerText = ""; // Empty if not showing solution
+                    }
+                    
+                    cellDiv.appendChild(content);
+                    container.appendChild(cellDiv);
+                }
+            }
+            // Apply fonts immediately
+            updatePreviewStyle();
+        }
+
+        // --- 3. PDF GENERATION ---
+        async function downloadPDF() {
+            const btn = document.getElementById('btnPdf');
+            const originalText = btn.innerText;
+            btn.innerText = "Generating...";
+            btn.disabled = true;
+
+            await new Promise(r => setTimeout(r, 100));
+
+            // --- PDF SETUP 6x9 INCHES ---
+            // Unit: 'in', format: [6, 9]
+            const doc = new jsPDF({
+                orientation: 'p',
+                unit: 'in',
+                format: [6, 9]
+            });
+
+            const pageCount = parseInt(document.getElementById('pageCount').value);
+            const size = parseInt(document.getElementById('gridSize').value);
+            const opsMode = document.getElementById('opsType').value;
+            const fontSizePt = parseInt(document.getElementById('numSize').value);
+            const isBold = document.getElementById('boldCheck').checked;
+            const fontFam = document.getElementById('fontFamily').value;
+            
+            // Margins: 0.5 inch each side. Usable width = 5 inches.
+            // But we need square cells.
+            let usableWidth = 5.0; 
+            let cellSize = usableWidth / size; 
+
+            let allPuzzles = [];
+            for(let i=0; i<pageCount; i++) {
+                allPuzzles.push(createPuzzleData(size, opsMode));
+            }
+
+            for(let i=0; i<pageCount; i++) {
+                if(i > 0) doc.addPage(); 
+                
+                // Page 1: Puzzle (Solution hidden)
+                drawPageOnPDF(doc, allPuzzles[i], false, fontSizePt, cellSize, isBold, fontFam);
+                
+                doc.addPage(); 
+                
+                // Page 2: Solution (Solution shown)
+                drawPageOnPDF(doc, allPuzzles[i], true, fontSizePt, cellSize, isBold, fontFam);
+            }
+
+            doc.save('Calcudoku_6x9.pdf');
+
+            btn.innerText = originalText;
+            btn.disabled = false;
+        }
+
+        function drawPageOnPDF(doc, data, isSolution, fontSizePt, cellSize, isBold, fontFam) {
+            const pageWidth = 6.0;  // Inches
+            const pageHeight = 9.0; // Inches
+            const size = data.size;
+            const gridWidth = size * cellSize;
+            const gridHeight = size * cellSize;
+
+            const startX = (pageWidth - gridWidth) / 2;
+            const startY = (pageHeight - gridHeight) / 2;
+
+            // Title
+            doc.setFontSize(16);
+            doc.setTextColor(50);
+            doc.setFont("helvetica", "bold");
+            doc.text(isSolution ? "Solution" : "Calcudoku Puzzle", pageWidth/2, startY - 0.4, {align: "center"});
+            
+            // Set User Selected Font for numbers
+            if(fontFam === 'times') doc.setFont("times", isBold ? "bold" : "normal");
+            else if(fontFam === 'courier') doc.setFont("courier", isBold ? "bold" : "normal");
+            else doc.setFont("helvetica", isBold ? "bold" : "normal");
+
+            // Draw Grid Logic
+            doc.setDrawColor(0);
+            doc.setTextColor(0);
+
+            for(let r=0; r<size; r++) {
+                for(let c=0; c<size; c++) {
+                    let x = startX + c * cellSize;
+                    let y = startY + r * cellSize;
+                    let cellData = data.cageGrid[r][c];
+
+                    // 1. Draw Target Label (Top Left)
+                    if(cellData.isTopLeft) {
+                        doc.setFontSize(8); 
+                        doc.setTextColor(0);
+                        // Switch to Helvetica Normal for small label readability
+                        let currentFont = doc.getFont(); 
+                        doc.setFont("helvetica", "normal");
+                        // Small offset (inches)
+                        doc.text(`${cellData.target}${cellData.op}`, x + 0.05, y + 0.15); 
+                        // Switch back
+                        doc.setFont(currentFont.fontName, currentFont.fontStyle);
+                    }
+
+                    // 2. Draw Solution Number (Center)
+                    if(isSolution) {
+                        doc.setFontSize(fontSizePt);
+                        doc.setTextColor(0, 0, 0); // Black text
+                        // Font style already set before loop
+                        doc.text(String(data.grid[r][c]), x + cellSize/2, y + cellSize/2, { align: "center", baseline: "middle" });
+                    }
+
+                    // 3. Draw Borders
+                    // Thin/Thick in inches. 
+                    const thick = 0.03; 
+                    const thin = 0.005;
+                    
+                    // TOP
+                    if(r === 0 || data.cageGrid[r-1][c].id !== cellData.id) {
+                        doc.setLineWidth(thick);
+                        doc.line(x, y, x+cellSize, y);
+                    } else {
+                        doc.setLineWidth(thin);
+                        doc.setLineDash([0.05, 0.05], 0); 
+                        doc.line(x, y, x+cellSize, y);
+                        doc.setLineDash([]); 
+                    }
+
+                    // LEFT
+                    if(c === 0 || data.cageGrid[r][c-1].id !== cellData.id) {
+                        doc.setLineWidth(thick);
+                        doc.line(x, y, x, y+cellSize);
+                    } else {
+                        doc.setLineWidth(thin);
+                        doc.setLineDash([0.05, 0.05], 0);
+                        doc.line(x, y, x, y+cellSize);
+                        doc.setLineDash([]);
+                    }
+
+                    // RIGHT
+                    if(c === size-1 || data.cageGrid[r][c+1].id !== cellData.id) {
+                        doc.setLineWidth(thick);
+                        doc.line(x+cellSize, y, x+cellSize, y+cellSize);
+                    }
+
+                    // BOTTOM
+                    if(r === size-1 || data.cageGrid[r+1][c].id !== cellData.id) {
+                        doc.setLineWidth(thick);
+                        doc.line(x, y+cellSize, x+cellSize, y+cellSize);
+                    }
+                }
+            }
+            
+            // Outer Border Cleanup
+            doc.setLineWidth(0.03);
+            doc.rect(startX, startY, gridWidth, gridHeight);
+        }
+
+        // Initialize
+        window.onload = () => generatePreview(false);
+    </script>
+</body>
+</html>

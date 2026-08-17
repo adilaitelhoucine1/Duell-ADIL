@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pyramid Generator - Custom</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        :root { --primary: #2563eb; --bg: #f8fafc; --card: #ffffff; }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            background-color: var(--card);
+            padding: 2.5rem;
+            border-radius: 16px;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 { color: #1e293b; text-align: center; margin-top: 0; font-size: 1.5rem; }
+        p { text-align: center; color: #64748b; font-size: 0.9rem; margin-bottom: 2rem; }
+        
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .form-group { margin-bottom: 1rem; }
+        
+        label { display: block; margin-bottom: 0.5rem; color: #475569; font-weight: 600; font-size: 0.875rem; }
+        input, select {
+            width: 100%; padding: 0.75rem;
+            border: 1px solid #cbd5e1; border-radius: 8px;
+            font-size: 1rem; box-sizing: border-box;
+            transition: border-color 0.2s;
+        }
+        input:focus, select:focus { outline: none; border-color: var(--primary); ring: 2px var(--primary); }
+        
+        button {
+            background-color: var(--primary); color: white;
+            border: none; padding: 1rem; font-size: 1rem; font-weight: 600;
+            border-radius: 8px; cursor: pointer; width: 100%; margin-top: 1rem;
+            transition: background-color 0.2s;
+        }
+        button:hover { background-color: #1d4ed8; }
+        
+        #status {
+            margin-top: 1rem; text-align: center; font-size: 0.9rem;
+            font-weight: 500; min-height: 1.5em;
+        }
+        .success { color: #16a34a; }
+        .error { color: #dc2626; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Pyramid Logic Generator</h1>
+    <p>Customizable PDF Generator</p>
+    
+    <!-- Row 1: Basic Counts -->
+    <div class="grid-2">
+        <div class="form-group">
+            <label>Number of Games</label>
+            <input type="number" id="gameCount" min="1" max="50" value="5">
+        </div>
+        <div class="form-group">
+            <label>Stages (Rows)</label>
+            <input type="number" id="stageCount" min="3" max="15" value="6">
+        </div>
+    </div>
+
+    <!-- Row 2: Difficulty & Size -->
+    <div class="grid-2">
+        <div class="form-group">
+            <label>Difficulty</label>
+            <select id="difficulty">
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Paper Size</label>
+            <select id="paperSize" onchange="toggleCustom()">
+                <option value="a4">A4</option>
+                <option value="letter">US Letter</option>
+                <option value="book">6 x 9 Book</option>
+                <option value="custom">Custom</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Row 3: Styling (New) -->
+    <div class="grid-2">
+        <div class="form-group">
+            <label>Font (Police)</label>
+            <select id="fontStyle">
+                <option value="helvetica">Helvetica (Sans)</option>
+                <option value="times">Times (Serif)</option>
+                <option value="courier">Courier (Mono)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>Line Width (mm)</label>
+            <input type="number" id="lineWidth" step="0.1" min="0.1" max="3" value="0.3">
+        </div>
+    </div>
+
+    <div id="customInputs" class="hidden grid-2 form-group">
+        <div><input type="number" id="cW" placeholder="Width (in)" step="0.1"></div>
+        <div><input type="number" id="cH" placeholder="Height (in)" step="0.1"></div>
+    </div>
+
+    <button onclick="startGenerator()">Generate Verified PDF</button>
+    <div id="status"></div>
+</div>
+
+<script>
+    const { jsPDF } = window.jspdf;
+
+    function toggleCustom() {
+        const isCustom = document.getElementById('paperSize').value === 'custom';
+        document.getElementById('customInputs').style.display = isCustom ? 'grid' : 'none';
+    }
+
+    function startGenerator() {
+        const btn = document.querySelector('button');
+        const status = document.getElementById('status');
+        
+        btn.disabled = true;
+        btn.textContent = "Processing...";
+        status.textContent = "Calculating...";
+        status.className = "";
+
+        setTimeout(() => {
+            try {
+                generatePDF();
+                status.textContent = "Success! PDF Generated.";
+                status.className = "success";
+            } catch (e) {
+                console.error(e);
+                status.textContent = "Error: " + e.message;
+                status.className = "error";
+            }
+            btn.disabled = false;
+            btn.textContent = "Generate Verified PDF";
+        }, 50);
+    }
+
+    function generatePDF() {
+        // --- 1. Gather Inputs ---
+        const gameCount = parseInt(document.getElementById('gameCount').value);
+        const stageCount = parseInt(document.getElementById('stageCount').value);
+        const difficulty = document.getElementById('difficulty').value;
+        const sizeMode = document.getElementById('paperSize').value;
+        
+        // New Style Inputs
+        const fontName = document.getElementById('fontStyle').value;
+        const lineWidth = parseFloat(document.getElementById('lineWidth').value) || 0.3;
+
+        if (gameCount < 1 || stageCount < 2) throw new Error("Invalid inputs");
+
+        // --- 2. Page Dimensions (mm) ---
+        let pW = 210, pH = 297; 
+        if (sizeMode === 'letter') { pW = 215.9; pH = 279.4; }
+        if (sizeMode === 'book') { pW = 152.4; pH = 228.6; }
+        if (sizeMode === 'custom') {
+            pW = parseFloat(document.getElementById('cW').value) * 25.4;
+            pH = parseFloat(document.getElementById('cH').value) * 25.4;
+            if (isNaN(pW) || isNaN(pH)) throw new Error("Invalid custom size");
+        }
+
+        const doc = new jsPDF({
+            orientation: pW > pH ? "landscape" : "portrait",
+            unit: "mm",
+            format: [pW, pH]
+        });
+
+        // --- 3. Layout Calculation ---
+        const margin = 20;
+        const usableW = pW - (margin * 2);
+        
+        let boxSize = usableW / stageCount;
+        if (boxSize > 20) boxSize = 20;
+        if (boxSize < 8) boxSize = 8;
+
+        const pyramidH = stageCount * (boxSize * 0.85);
+        const startY = (pH - pyramidH) / 2 + 5;
+
+        // --- 4. Game Generation Loop ---
+        for (let i = 0; i < gameCount; i++) {
+            // STEP A: Create the Math
+            const solutionGrid = createMathGrid(stageCount, difficulty);
+
+            // STEP B: Create the Mask
+            const mask = createSolvableMask(solutionGrid, difficulty);
+
+            // STEP C: Draw Page 1 (The Game)
+            // Modified Header: Simple "Puzzle X"
+            drawHeader(doc, `Puzzle ${i + 1}`, pW, margin, fontName);
+            drawPyramid(doc, solutionGrid, mask, false, startY, boxSize, pW, fontName, lineWidth);
+            
+            doc.addPage([pW, pH]);
+
+            // STEP D: Draw Page 2 (The Solution)
+            // Modified Header: Simple "Solution X"
+            drawHeader(doc, `Solution ${i + 1}`, pW, margin, fontName);
+            drawPyramid(doc, solutionGrid, mask, true, startY, boxSize, pW, fontName, lineWidth);
+
+            if (i < gameCount - 1) doc.addPage([pW, pH]);
+        }
+
+        doc.save(`Pyramid_Game_${difficulty}.pdf`);
+    }
+
+    // --- LOGIC ENGINE ---
+
+    function createMathGrid(stages, diff) {
+        let levels = [];
+        let base = [];
+        let maxBase = 15;
+        if (stages > 8) maxBase = 5;
+        if (stages > 12) maxBase = 2;
+        let minBase = 1;
+        if (diff === 'hard' && stages < 8) minBase = 5;
+
+        for (let j = 0; j < stages; j++) {
+            base.push(Math.floor(Math.random() * (maxBase - minBase + 1)) + minBase);
+        }
+        levels.push(base);
+
+        for (let l = 0; l < stages - 1; l++) {
+            let row = levels[l];
+            let nextRow = [];
+            for (let k = 0; k < row.length - 1; k++) {
+                nextRow.push(row[k] + row[k + 1]);
+            }
+            levels.push(nextRow);
+        }
+        return levels.reverse();
+    }
+
+    function createSolvableMask(grid, diff) {
+        let rows = grid.length;
+        let mask = grid.map(r => r.map(() => true));
+
+        if (diff === 'easy') {
+            for (let r = 0; r < rows - 1; r++) {
+                for (let c = 0; c < mask[r].length; c++) {
+                    if (Math.random() > 0.4) mask[r][c] = false;
+                }
+            }
+            return mask;
+        }
+
+        let cells = [];
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < grid[r].length; c++) {
+                cells.push({r, c});
+            }
+        }
+        cells.sort(() => Math.random() - 0.5);
+
+        let targetHidden = (diff === 'hard') ? 0.70 : 0.45;
+        let total = cells.length;
+        let currentHidden = 0;
+
+        for (let cell of cells) {
+            if (currentHidden / total >= targetHidden) break;
+            let r = cell.r;
+            let c = cell.c;
+            mask[r][c] = false;
+
+            if (verifySolvability(grid, mask)) {
+                currentHidden++;
+            } else {
+                mask[r][c] = true;
+            }
+        }
+        return mask;
+    }
+
+    function verifySolvability(grid, mask) {
+        let tempMask = mask.map(row => [...row]);
+        let rows = grid.length;
+        let madeProgress = true;
+
+        while (madeProgress) {
+            madeProgress = false;
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < tempMask[r].length; c++) {
+                    if (!tempMask[r][c]) {
+                        if (r < rows - 1) {
+                            if (tempMask[r+1][c] && tempMask[r+1][c+1]) {
+                                tempMask[r][c] = true; madeProgress = true; continue;
+                            }
+                        }
+                        if (r > 0 && c < tempMask[r].length - 1) {
+                            if (tempMask[r-1][c] && tempMask[r][c+1]) {
+                                tempMask[r][c] = true; madeProgress = true; continue;
+                            }
+                        }
+                        if (r > 0 && c > 0) {
+                            if (tempMask[r-1][c-1] && tempMask[r][c-1]) {
+                                tempMask[r][c] = true; madeProgress = true; continue;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        for (let r = 0; r < rows; r++) {
+            for (let c = 0; c < tempMask[r].length; c++) {
+                if (!tempMask[r][c]) return false;
+            }
+        }
+        return true;
+    }
+
+    // --- DRAWING ---
+
+    // Updated Header: Simple, single line, custom font
+    function drawHeader(doc, title, pW, m, fontName) {
+        doc.setTextColor(30);
+        doc.setFont(fontName, "bold");
+        doc.setFontSize(24);
+        doc.text(title, pW/2, m + 5, {align: "center"});
+    }
+
+    // Updated Pyramid: Uses lineWidth and fontName
+    function drawPyramid(doc, grid, mask, isSolution, startY, size, pW, fontName, lineWidth) {
+        const h = size * 0.85;
+        doc.setLineWidth(lineWidth); // Custom Line Width
+        doc.setDrawColor(0); // Black lines
+
+        for (let r = 0; r < grid.length; r++) {
+            let row = grid[r];
+            let rowW = row.length * size;
+            let startX = (pW - rowW) / 2;
+            let y = startY + (r * h);
+
+            for (let c = 0; c < row.length; c++) {
+                let x = startX + (c * size);
+                
+                doc.setFillColor(255);
+                doc.rect(x, y, size, h, 'FD');
+
+                let show = isSolution ? true : mask[r][c];
+                
+                if (show) {
+                    let val = row[c].toString();
+                    
+                    let fontSize = 14;
+                    if (size < 12) fontSize = 10;
+                    if (size < 8) fontSize = 6;
+                    
+                    if (val.length >= 3) fontSize -= 2;
+                    if (val.length >= 4) fontSize -= 2;
+                    if (val.length >= 5) fontSize -= 2;
+                    if (fontSize < 5) fontSize = 5;
+
+                    doc.setTextColor(0);
+                    doc.setFont(fontName, "normal"); // Custom Font
+                    doc.setFontSize(fontSize);
+                    doc.text(val, x + size/2, y + h/2 + (fontSize * 0.35), {align: "center", baseline:"bottom"});
+                }
+            }
+        }
+    }
+</script>
+
+</body>
+</html>

@@ -1,0 +1,219 @@
+:root {
+    --bg-color: #e8eaed;
+    --grid-border: #333;
+    --cell-border: #ccc;
+    --cage-bg: rgba(0,0,0,0.02);
+    --selected-bg: #bbdefb;
+    --highlight-bg: #e3f2fd;
+    --text-color: #202124;
+    --note-color: #757575;
+    --sum-color: #333;
+}
+
+body {
+    font-family: 'Roboto', sans-serif;
+    background-color: var(--bg-color);
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+.main-container {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    max-width: 600px;
+    width: 100%;
+}
+
+header {
+    width: 100%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    background: white;
+    padding: 15px;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+}
+
+h1 {
+    margin: 0;
+    font-size: 1.5rem;
+    color: #1a73e8;
+}
+
+.controls {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+button {
+    padding: 8px 12px;
+    border: none;
+    background: #1a73e8;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+}
+
+button:hover { background: #1557b0; }
+
+.toggle-container {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 0.9rem;
+}
+
+.game-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.sudoku-grid {
+    display: grid;
+    grid-template-columns: repeat(9, 44px);
+    grid-template-rows: repeat(9, 44px);
+    border: 2px solid var(--grid-border);
+    background: white;
+    user-select: none;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+}
+
+.cell {
+    width: 44px;
+    height: 44px;
+    border: 1px solid var(--cell-border);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-family: 'Roboto Mono', monospace;
+    font-size: 1.5rem;
+    cursor: pointer;
+    position: relative;
+    background-color: white;
+    box-sizing: border-box; 
+}
+
+/* 3x3 Box Borders */
+.cell[data-col="2"], .cell[data-col="5"] { border-right: 2px solid var(--grid-border); }
+.cell[data-row="2"], .cell[data-row="5"] { border-bottom: 2px solid var(--grid-border); }
+
+/* Interaction States */
+.cell.selected { background-color: var(--selected-bg) !important; }
+.cell.highlighted { background-color: var(--highlight-bg); }
+.cell.error { color: #d32f2f; background-color: #ffcdd2 !important; }
+
+/* Cage Styling */
+/* We use a pseudo-element to draw the cage borders.
+   By default, we set positions to -1px to extend to the edge (connecting to neighbors).
+   If a specific cage border class is present, we inset that side to 2px and show the border. */
+.cell::after {
+    content: '';
+    position: absolute;
+    top: -1px; 
+    bottom: -1px; 
+    left: -1px; 
+    right: -1px;
+    pointer-events: none;
+    border: 0px dashed #666; /* thin dashed lines */
+    z-index: 5;
+}
+
+.cage-border-top::after { border-top-width: 1px; top: 2px; }
+.cage-border-bottom::after { border-bottom-width: 1px; bottom: 2px; }
+.cage-border-left::after { border-left-width: 1px; left: 2px; }
+.cage-border-right::after { border-right-width: 1px; right: 2px; }
+
+.cage-sum {
+    position: absolute;
+    top: 2px;
+    left: 2px;
+    font-size: 0.7rem;
+    line-height: 1;
+    color: var(--sum-color);
+    font-weight: bold;
+    pointer-events: none;
+    background: rgba(255,255,255,0.7);
+    padding: 1px;
+    border-radius: 2px;
+}
+
+.notes-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+.note-num {
+    font-size: 0.6rem;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    color: var(--note-color);
+}
+
+.numpad {
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 400px;
+}
+
+.num-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: white;
+    border: 1px solid #ccc;
+    color: #333;
+    font-size: 1.2rem;
+}
+.num-btn:hover { background: #eee; }
+.num-btn.action-btn { font-size: 1rem; color: #d32f2f; }
+
+.message-area {
+    font-weight: bold;
+    height: 20px;
+    text-align: center;
+}
+
+.pdf-controls {
+    width: 100%;
+    background: #f1f3f4;
+    padding: 10px;
+    border-radius: 8px;
+    margin-top: 10px;
+}
+.pdf-controls h3 {
+    margin: 0 0 10px 0;
+    font-size: 1rem;
+    color: #5f6368;
+}
+.control-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Responsive */
+@media (max-width: 500px) {
+    .sudoku-grid {
+        grid-template-columns: repeat(9, 36px);
+        grid-template-rows: repeat(9, 36px);
+    }
+    .cell { width: 36px; height: 36px; font-size: 1.2rem; }
+}
